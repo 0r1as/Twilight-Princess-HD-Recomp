@@ -4,11 +4,13 @@
 // The GamePad screen modes are the AppKit host's (gfx/display_modes.cpp): the GamePad window is shown
 // in window mode and hidden in the others, which draw the GamePad picture into the TV window.
 #ifdef WWHD_SDL_HOST
+#include "aspect.h"
 #include "backend.h"
 #include "gfx/display_modes.h"
 #include "settings.h"
 #include "input.h"
 #include "interp.h"
+#include "look.h"
 #include "overlay/hostui.h"
 #include "platform/host.h"
 #include "platform/perf_hint.h"
@@ -173,6 +175,12 @@ void graphics_changed() {
     put("fpsHighPaced", {"WWHD_INTERP_PACED"}, interp::paced_interpolation_at(120) ? "1" : "0");
     put("scaleFilter", {"WWHD_SCALE_FILTER"}, std::to_string(gfxvk::scale_filter()));
     put("vkPresentMode", {"WWHD_VK_PRESENT_MODE"}, std::to_string(gfxvk::present_mode()));
+    // TP HD's picture options (aspect.cpp, look.cpp), as menu.mm keeps them in display.plist
+    put("aspect", {"WWHD_ASPECT"}, std::to_string(aspect::mode()));
+    put("bloom", {"WWHD_BLOOM"}, std::to_string(look::bloom()));
+    put("hud", {"WWHD_HUD"}, look::hud() ? "1" : "0");
+    put("fog", {"WWHD_FOG"}, std::to_string(look::fog()));
+    put("sharpness", {"WWHD_SHARPNESS"}, std::to_string(look::sharpness()));
     save_locked();
 }
 // start-up (backend.cpp init): the saved graphics options
@@ -194,6 +202,11 @@ void load_saved_options() {
     if (saved("fpsHighPaced", {"WWHD_INTERP_PACED"})) interp::set_paced_interpolation_at(120, num("fpsHighPaced") != 0);
     if (saved("scaleFilter", {"WWHD_SCALE_FILTER"})) gfxvk::set_scale_filter((int)num("scaleFilter"));
     if (saved("vkPresentMode", {"WWHD_VK_PRESENT_MODE"})) gfxvk::set_present_mode((int)num("vkPresentMode"));
+    if (saved("aspect", {"WWHD_ASPECT"})) aspect::set_mode((int)num("aspect"));
+    if (saved("bloom", {"WWHD_BLOOM"})) look::set_bloom((int)num("bloom"));
+    if (saved("hud", {"WWHD_HUD"})) look::set_hud(num("hud") != 0);
+    if (saved("fog", {"WWHD_FOG"})) look::set_fog((int)num("fog"));
+    if (saved("sharpness", {"WWHD_SHARPNESS"})) look::set_sharpness((int)num("sharpness"));
     // GamePad screen (display_modes.h); the start-up test overrides after the saved choices
     using namespace gfx;
     if (v.count("drcMode")) {
