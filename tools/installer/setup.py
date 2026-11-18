@@ -1235,9 +1235,17 @@ def launch(state, data_dir):
 LAUNCHER = {"darwin": "Twilight Princess HD.app", "win32": "Twilight Princess HD.exe"}.get(sys.platform, "twilight-princess-hd")
 
 
+def appimage():
+    """The .AppImage file this setup runs from ($APPIMAGE), else None. Its contents are mounted read-only at a
+    path that changes on every start (/tmp/.mount_XXXXXX), so anything that outlives this run (a shortcut) names
+    the AppImage file, never PKG."""
+    image = os.environ.get("APPIMAGE")
+    return image if IS_LINUX and image and os.path.isfile(image) else None
+
+
 def create_shortcut():
-    """Optional (portable release): a shortcut to the release folder's launcher. Returns its path."""
-    target = os.path.join(PKG, LAUNCHER)
+    """Optional (portable release or AppImage): a shortcut to the release's launcher. Returns its path."""
+    target = appimage() or os.path.join(PKG, LAUNCHER)
     if IS_MAC:
         apps = os.path.expanduser("~/Applications")
         os.makedirs(apps, exist_ok=True)
@@ -1254,7 +1262,8 @@ def create_shortcut():
         with open(link, "w") as f:
             f.write("[Desktop Entry]\nType=Application\nName=%s\nExec=%s\nPath=%s\nTerminal=false\nCategories=Game;\n"
                     "Actions=setup;\n\n[Desktop Action setup]\nName=Setup (repair, update, change game)\n"
-                    "Exec=%s --setup\n" % (APP_NAME, desktop_exec(target), desktop_string(PKG), desktop_exec(target)))
+                    "Exec=%s --setup\n" % (APP_NAME, desktop_exec(target), desktop_string(os.path.dirname(target)),
+                                          desktop_exec(target)))
     else:
         link = os.path.join(os.environ.get("APPDATA", ""), "Microsoft", "Windows", "Start Menu", "Programs", APP_NAME + ".lnk")
         try:
@@ -1599,6 +1608,8 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
              "game_dir": ctx.game_dir, "portable": PORTABLE,
              "installed": time.strftime("%Y-%m-%d %H:%M:%S"), "toolchain": manifest["toolchain"],
              "placeholder_code": kind == "gen"}
+    if appimage():
+        state["appimage"] = appimage()  # installed from an AppImage (its own folder is read-only; data_dir is per-user)
     if PORTABLE:
         # the game keeps its settings, save states and caches in data/user (runtime: host::portable_user_dir)
         with open(os.path.join(exe_dir, "portable.txt"), "w") as f:

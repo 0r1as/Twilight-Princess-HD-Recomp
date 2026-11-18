@@ -290,6 +290,29 @@ class SpecialCharactersInLauncherFolder(unittest.TestCase):
             self.assertEqual(keys["Path"].replace("\\\\", "\\"), data)
 
 
+class AppImageShortcut(unittest.TestCase):
+    """From an AppImage the release is a read-only mount at a new path each start: the menu entry runs the
+    .AppImage file (in its folder), never the mount."""
+
+    @unittest.skipUnless(setup.IS_LINUX, "the menu entry is the Linux shortcut")
+    def test_shortcut_names_the_appimage(self):
+        with tempfile.TemporaryDirectory() as t:
+            image = os.path.join(t, "Games", "Twilight Princess HD.AppImage")
+            os.makedirs(os.path.dirname(image))
+            with open(image, "wb") as f:
+                f.write(b"\x7fELF")
+            for env, target in (({"APPIMAGE": image}, image), ({}, os.path.join(setup.PKG, setup.LAUNCHER))):
+                environ = {k: v for k, v in os.environ.items() if k != "APPIMAGE"}
+                environ.update(env, XDG_DATA_HOME=t)
+                with mock.patch.dict(os.environ, environ, clear=True), mock.patch.object(setup, "say"):
+                    link = setup.create_shortcut()
+                    self.assertEqual(setup.appimage(), env.get("APPIMAGE"))
+                with open(link) as f:
+                    keys = dict(line.split("=", 1) for line in f.read().splitlines()[:6] if "=" in line)
+                self.assertEqual(SpecialCharactersInLauncherFolder.exec_argument(keys["Exec"]), (target, ""))
+                self.assertEqual(keys["Path"].replace("\\\\", "\\"), os.path.dirname(target))
+
+
 class Arch(unittest.TestCase):
     def test_normalize(self):
         for a, want in (("x86_64", "x86_64"), ("AMD64", "x86_64"), ("aarch64", "aarch64"), ("arm64", "aarch64")):
