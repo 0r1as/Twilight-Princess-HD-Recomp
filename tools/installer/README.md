@@ -59,7 +59,9 @@ import a save / open the folder), choose the disc image, Cemu archive or game fo
 (a bar per step, an overall bar, the log under "Details"), done (Play, Open folder, Quit, import a save; in a portable
 release also: remove the downloaded compiler, add a shortcut), and error screens with Retry and Copy
 log. Import a save (2026-10-09): a save of the game from Cemu or a Wii U, offered from Cemu's default folder
-on macOS (`~/Library/Application Support/Cemu/mlc01/usr/save/00050000/1019e500`) when it has one, or a chosen
+(`mlc01/usr/save/00050000/1019e500` in `~/Library/Application Support/Cemu` on macOS; on Linux in
+`$XDG_DATA_HOME/Cemu`, normally `~/.local/share/Cemu`, or the Flatpak's `~/.var/app/info.cemu.Cemu/data/Cemu`)
+when it has one, or a chosen
 folder: the game's save folder, its `user` folder, an account folder (`80000001`) or a folder with the Quest
 Logs. Only `ZTP00.dat` to `ZTP02.dat` (3,584 bytes each, checked) and `COMMON.dat` are copied, into
 `save/user`; a save already there is moved to `save/user.backup-<time>` first. The terminal setup does the same

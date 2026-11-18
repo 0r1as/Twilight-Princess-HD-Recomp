@@ -1276,8 +1276,21 @@ def remove_toolchain(data_dir):
 
 QUEST_LOGS = ["ZTP00.dat", "ZTP01.dat", "ZTP02.dat"]
 QUEST_LOG_BYTES = 3584
-# Cemu's default mlc01 on macOS is in its user data folder (ActiveSettings::GetDefaultMLCPath)
-CEMU_SAVE = os.path.expanduser("~/Library/Application Support/Cemu/mlc01/usr/save/00050000/1019e500")
+CEMU_GAME_SAVE = os.path.join("mlc01", "usr", "save", "00050000", "1019e500")
+
+
+def cemu_save_folders():
+    """Where Cemu keeps the game's save by default: its mlc01 is in its user data folder
+    (ActiveSettings::GetDefaultMLCPath). macOS: Application Support. Linux: $XDG_DATA_HOME/Cemu
+    (~/.local/share/Cemu; the AppImage too), or the Flatpak's own data folder."""
+    if IS_MAC:
+        roots = [os.path.expanduser("~/Library/Application Support/Cemu")]
+    elif IS_LINUX:
+        data = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+        roots = [os.path.join(data, "Cemu"), os.path.expanduser("~/.var/app/info.cemu.Cemu/data/Cemu")]
+    else:
+        roots = []
+    return [os.path.join(r, CEMU_GAME_SAVE) for r in roots]
 
 
 def save_files(path):
@@ -1309,12 +1322,14 @@ def save_files(path):
 
 
 def cemu_save():
-    """Cemu's save of the game in its default folder, or None."""
-    try:
-        save_files(CEMU_SAVE)
-    except SetupError:
-        return None
-    return CEMU_SAVE
+    """Cemu's save of the game in its default folder (the first that has one), or None."""
+    for folder in cemu_save_folders():
+        try:
+            save_files(folder)
+        except (SetupError, OSError):
+            continue
+        return folder
+    return None
 
 
 def import_save(path, save_dir):

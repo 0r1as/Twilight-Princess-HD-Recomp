@@ -406,16 +406,28 @@ class SaveImport(unittest.TestCase):
             self.assertEqual(sorted(os.listdir(save)), sorted(backup + ["user"]))
 
     def test_cemu_default_folder(self):
-        saved = setup.CEMU_SAVE
-        try:
-            with tempfile.TemporaryDirectory() as d:
-                setup.CEMU_SAVE = os.path.join(d, "1019e500")
+        with tempfile.TemporaryDirectory() as d:
+            first, second = os.path.join(d, "a", "1019e500"), os.path.join(d, "b", "1019e500")
+            with mock.patch.object(setup, "cemu_save_folders", return_value=[first, second]):
                 self.assertIsNone(setup.cemu_save())
-                _cemu_save(d)
-                self.assertEqual(setup.cemu_save(), setup.CEMU_SAVE)
-        finally:
-            setup.CEMU_SAVE = saved
-        self.assertTrue(saved.endswith("/Library/Application Support/Cemu/mlc01/usr/save/00050000/1019e500"))
+                _cemu_save(os.path.join(d, "b"))
+                self.assertEqual(setup.cemu_save(), second)
+                _cemu_save(os.path.join(d, "a"))
+                self.assertEqual(setup.cemu_save(), first)  # the first folder with a save
+
+    def test_cemu_folders_per_system(self):
+        tail = "/Cemu/mlc01/usr/save/00050000/1019e500"
+        home = os.path.expanduser("~")
+        with mock.patch.object(setup, "IS_MAC", True), mock.patch.object(setup, "IS_LINUX", False):
+            self.assertEqual(setup.cemu_save_folders(), [home + "/Library/Application Support" + tail])
+        with mock.patch.object(setup, "IS_MAC", False), mock.patch.object(setup, "IS_LINUX", True):
+            with mock.patch.dict(os.environ, {"XDG_DATA_HOME": "/data"}):
+                self.assertEqual(setup.cemu_save_folders(), ["/data" + tail, home + "/.var/app/info.cemu.Cemu/data" + tail])
+            env = {k: v for k, v in os.environ.items() if k != "XDG_DATA_HOME"}
+            with mock.patch.dict(os.environ, env, clear=True):
+                self.assertEqual(setup.cemu_save_folders()[0], home + "/.local/share" + tail)
+        with mock.patch.object(setup, "IS_MAC", False), mock.patch.object(setup, "IS_LINUX", False):
+            self.assertEqual(setup.cemu_save_folders(), [])
 
 
 class NonInteractive(unittest.TestCase):
