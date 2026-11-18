@@ -12,13 +12,19 @@
 # Env: SAVE (save folder under build/audit/saves, default "route"), FRESH=1 starts that save folder empty,
 # LOAD=<slot> loads save state <slot> from build/audit/states at frame 60 and starts the route's clock a game second later
 # (take one with WWHD_STATE_SAVE_AT=<frame>:<slot>).
-# APP=<wwhd> runs another build. Other WWHD_* variables pass through, e.g. WWHD_WARP=150:<stage>,<point>,<room>,<layer> (tools/warplist.py).
+# APP=<wwhd> runs another build (default: the first of build/cmake-tphd, build/linux-game and build/cmake that has one).
+# Other WWHD_* variables pass through, e.g. WWHD_WARP=150:<stage>,<point>,<room>,<layer> (tools/warplist.py).
+# macOS and Linux: crashes are found in macOS's crash reports and in the runtime's own captures/crash-*.log; shots are
+# scaled with sips or ImageMagick (kept at full size without either); video clips need macOS (Swift, screen recording).
 set -u
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 ROUTE=$(cd "$(dirname "$1")" && pwd)/$(basename "$1"); TOTAL=$2; shift 2
 NAME=$(basename "$ROUTE" .txt); OUT=$ROOT/build/audit/$NAME; rm -rf "$OUT"; mkdir -p "$OUT"
 SAVEDIR=$ROOT/build/audit/saves/${SAVE:-route}; [ "${FRESH:-0}" = 1 ] && rm -rf "$SAVEDIR"; mkdir -p "$SAVEDIR"
-APP=${APP:-$ROOT/build/cmake-tphd/wwhd}  # another build (an agent's worktree) runs through this checkout's lock
+if [ -z "${APP:-}" ]; then  # another build (an agent's worktree) runs through this checkout's lock
+  for A in build/cmake-tphd/wwhd build/linux-game/wwhd build/cmake/wwhd; do [ -x "$ROOT/$A" ] && { APP=$ROOT/$A; break; }; done
+  APP=${APP:-$ROOT/build/cmake-tphd/wwhd}
+fi
 LOCK=$ROOT/build/audit/.run.lock
 until mkdir "$LOCK" 2>/dev/null; do sleep 2; done; trap 'rmdir "$LOCK"' EXIT
 
@@ -50,7 +56,15 @@ for SHOT in "$@"; do
 done
 
 pkill -TERM -f "$ROOT/.*wwhd " 2>/dev/null && sleep 2  # this checkout's builds only (other projects run their own wwhd)
-BEFORE=$(ls ~/Library/Logs/DiagnosticReports/ | grep -c '^wwhd')
+# crash reports: macOS's, and the runtime's own in the run's captures/ (every platform)
+crash_reports() { { ls -t ~/Library/Logs/DiagnosticReports/wwhd* "$OUT"/captures/crash-*.log 2>/dev/null; } | grep -v '^$'; }
+BEFORE=$(crash_reports | grep -c .)
+# shrink <max side> <in> <out>: scaled to fit (sips on macOS, ImageMagick elsewhere; a copy without either)
+shrink() {
+  if command -v sips >/dev/null; then sips -Z "$1" "$2" --out "$3" >/dev/null
+  elif command -v magick >/dev/null; then magick "$2" -resize "$1x$1" "$3"
+  else cp "$2" "$3"; fi
+}
 cd "$OUT"
 # a state loads only if this boot's threads wait where the saved ones did, which depends on timing: boot again
 for TRY in 1 2 3 4 5; do
@@ -70,6 +84,7 @@ for SHOT in "${CLIPS_AT[@]+"${CLIPS_AT[@]}"}"; do
   T=${SHOT#v}; T=${T%%:*}
   while elapsed_lt "$T"; do sleep 0.05; done
   kill -0 $PID 2>/dev/null || { echo "EXITED before ${T}s"; break; }
+  if [ ! -x "$ROOT/build/audit/bin/wincap" ] && ! command -v swiftc >/dev/null; then echo "video clips need macOS: skipped v$T"; continue; fi
   [ -x "$ROOT/build/audit/bin/wincap" ] || { mkdir -p "$ROOT/build/audit/bin"; swiftc -O "$ROOT/tools/audit/wincap.swift" -o "$ROOT/build/audit/bin/wincap"; }
   "$ROOT/build/audit/bin/wincap" $PID "${SHOT#*:}" "$OUT/v$T" > /dev/null & CLIPS+=($!)
 done
@@ -79,13 +94,13 @@ kill -0 $PID 2>/dev/null && echo "ALIVE at ${TOTAL}s" || echo "DIED"
 kill -TERM $PID 2>/dev/null; for _ in 1 2 3 4 5 6; do kill -0 $PID 2>/dev/null || break; sleep 0.5; done
 kill -9 $PID 2>/dev/null
 # frame dumps -> tNN.png at 480 wide (SHOT_W=<pixels>) (the GamePad copies are dropped unless KEEP_DRC=1: dNN.png)
-for SHOT in "$@"; do [[ $SHOT == v* || "${KEEP_DRC:-0}" != 1 ]] && continue; F=frame_$(perl -e "print int($SHOT * $FPS + $ORIGIN)")_drc.png; [ -f "$F" ] && sips -Z 480 "$F" --out "d$SHOT.png" >/dev/null; done
+for SHOT in "$@"; do [[ $SHOT == v* || "${KEEP_DRC:-0}" != 1 ]] && continue; F=frame_$(perl -e "print int($SHOT * $FPS + $ORIGIN)")_drc.png; [ -f "$F" ] && shrink 480 "$F" "d$SHOT.png"; done
 rm -f frame_*_drc.png
 for SHOT in "$@"; do
   [[ $SHOT == v* ]] && continue
   F=frame_$(perl -e "print int($SHOT * $FPS + $ORIGIN)").png
-  [ -f "$F" ] && sips -Z ${SHOT_W:-480} "$F" --out "t$SHOT.png" >/dev/null && rm "$F" || echo "no frame for ${SHOT}s"
+  [ -f "$F" ] && shrink ${SHOT_W:-480} "$F" "t$SHOT.png" && rm "$F" || echo "no frame for ${SHOT}s"
 done
-AFTER=$(ls ~/Library/Logs/DiagnosticReports/ | grep -c '^wwhd')
-(( AFTER > BEFORE )) && echo "NEW CRASH REPORT: $(ls -t ~/Library/Logs/DiagnosticReports/wwhd* | head -1)"
+AFTER=$(crash_reports | grep -c .)
+(( AFTER > BEFORE )) && echo "NEW CRASH REPORT: $(crash_reports | head -1)"
 grep -E '\[test\]|unimplemented|fatal|stageName' log.txt | tail -8
