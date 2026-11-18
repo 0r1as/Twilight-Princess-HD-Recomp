@@ -1,9 +1,10 @@
 # Twilight Princess HD: Recompiled
 
 A static recompilation of The Legend of Zelda: Twilight Princess HD (Wii U, USA disc, Rev 2) into a
-native macOS app for Apple Silicon. The game's PowerPC code (`code/Zelda.rpx`) is translated to C ahead
-of time, the Cafe OS libraries it imports are reimplemented natively, and its GX2 graphics are drawn
-with Metal. There is no emulator at run time.
+native macOS app for Apple Silicon, and (built from source) a native Linux x86-64 program. The game's
+PowerPC code (`code/Zelda.rpx`) is translated to C ahead of time, the Cafe OS libraries it imports are
+reimplemented natively, and its GX2 graphics are drawn with Metal (macOS) or Vulkan (Linux). There is
+no emulator at run time.
 
 It is a fork of [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp) (Wind Waker HD),
 whose recompiler, Cafe OS layer, Metal renderer, setup and settings overlay it reuses. It is an
@@ -39,9 +40,9 @@ Graphics, the HUD and sound work. A real controller has not been tested yet.
 
 ## Requirements
 
-- A Mac with Apple Silicon, macOS 14 or newer. Metal only: there are no Windows, Linux or Android
-  builds.
-- Xcode or Apple's Command Line Tools (`xcode-select --install`), CMake 3.20 or newer.
+- A Mac with Apple Silicon, macOS 14 or newer (Metal), or a Linux x86-64 PC with a Vulkan 1.3 driver
+  (built from source: [Build on Linux](#build-on-linux)). There are no Windows or Android builds.
+- On a Mac: Xcode or Apple's Command Line Tools (`xcode-select --install`), CMake 3.20 or newer.
 - Python 3; `tools/wudextract.py` also needs `pycryptodome` (`pip3 install pycryptodome`).
 - From your own console and disc: a disc image (`.wux` or `.wud`), its disc key (16 bytes, in a
   `.key` file with the image's name next to it) and the Wii U common key (in `WIIU_COMMON_KEY` as 32
@@ -75,6 +76,48 @@ To check that the runtime builds without the game, use placeholder code:
 `python3 tools/recomp/stubgen.py build/gen-stub`, then
 `cmake -S . -B build/cmake-stub -DWWHD_RENDERER=METAL -DGEN_DIR=$PWD/build/gen-stub && make -C build/cmake-stub wwhd`.
 The result cannot run the game.
+
+## Build on Linux
+
+Checked on Arch Linux (x86-64, Clang 23, an AMD GPU with RADV). Linux uses the Vulkan renderer and the
+SDL3 host: there is no menu bar, so everything is in the settings overlay (F1).
+
+```sh
+# Clang, CMake, Python 3, Vulkan headers and loader, SDL 3, glslang, LZ4, zlib, zstd (Arch package names;
+# other distributions have their own)
+sudo pacman -S --needed clang cmake python vulkan-headers vulkan-icd-loader sdl3 glslang lz4 zlib zstd
+
+# 1. a placeholder build first: it makes the game extractor (wwhd-extract) and runs the tests
+python3 tools/recomp/stubgen.py build/gen-stub
+cmake -S . -B build/linux -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DGEN_DIR=$PWD/build/gen-stub
+cmake --build build/linux -j$(nproc)
+ctest --test-dir build/linux
+
+# 2. the game into game/: a Cemu archive (.wua, no keys) with wwhd-extract, or a disc image with
+#    tools/wudextract.py as in "Build from source" (needs pycryptodome and your keys)
+./build/linux/wwhd-extract --title 000500001019e500 info GAME.wua
+./build/linux/wwhd-extract --title 000500001019e500 --progress extract GAME.wua game
+sha256sum game/code/Zelda.rpx      # must match the SHA-256 above
+
+# 3. translate and build the game (Vulkan is the default off macOS)
+python3 tools/recomp/recomp.py game/code/Zelda.rpx build/gen
+cmake -S . -B build/linux-game -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+cmake --build build/linux-game -j$(nproc) --target wwhd
+
+# 4. play, from the repository root
+./build/linux-game/wwhd
+```
+
+Settings, controls, save states and the Vulkan shader cache are kept in `~/.config/tphd` (`$XDG_CONFIG_HOME`).
+`--renderer-smoke` checks the Vulkan renderer without the game (`docs/vulkan.md`). The keys differ from a
+Mac's where the Mac uses Cmd: Ctrl+P (or F12) captures a frame, Ctrl+G shows or hides the GamePad screen and
+F11 or Alt+Enter switches full screen. Save states are not shared between a Mac and Linux (another compression).
+
+**Steam.** The game can be added to Steam as a non-Steam game. Set **Start In** to the repository folder (the
+game looks for `game/` and `save/` in the current folder; otherwise use the launch options
+`--game DIR --save DIR`). With an Xbox controller, set the shortcut's Steam Input to **Default** (forced on, the
+game got no input from it in testing). Without Steam running, SDL lists a Steam Controller only with
+`SDL_JOYSTICK_HIDAPI_STEAM=1` (its driver is off by default; not yet tried in play).
 
 ## Install with the setup app
 
@@ -263,9 +306,12 @@ the shader cache in `~/Library/Caches/tphd` (both in `data/user` in a packaged f
 
 ## Known limitations
 
-- macOS on Apple Silicon only (Metal). The Vulkan renderer and the SDL3 host, kept for possible Windows
-  and Linux builds, run Twilight Princess HD on a Mac through MoltenVK (`docs/vulkan.md`); no Windows or
-  Linux build has been made.
+- macOS on Apple Silicon (Metal) and Linux x86-64 built from source (Vulkan, checked on one AMD GPU). The
+  setup app and release packages have only been made and tried for macOS; no Windows build has been made. The Vulkan renderer also
+  runs on a Mac through MoltenVK (`docs/vulkan.md`).
+- Linux: F12 doesn't capture while the settings overlay is open (it has the keyboard). A Steam Controller
+  launched through Steam acted as a keyboard and mouse in the one test made (Steam stayed on its desktop
+  layout); not investigated further.
 - Not yet checked: a real controller, playing whole dungeons and bosses (the disc's QA saves load and play
   from every part of the story: `tools/audit/qasaves.sh`).
 - Frame interpolation blends the camera, models (with their texture and color animation), particles,
