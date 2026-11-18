@@ -677,12 +677,19 @@ def title_desc(tid, version=None):
     return name + v
 
 
+def code_hash_args(title):
+    """wwhd-extract takes an archive's only, unlabeled title (0000000000000000_v0: some tools leave the title id out)
+    as the game when its code/Zelda.rpx has this SHA-256; check_game_version checks it again after extracting."""
+    return ["--code-sha256", SUPPORTED_RPX_SHA256] if title and title[:16].lower() == SUPPORTED_TITLE else []
+
+
 def archive_info(path, title=SUPPORTED_TITLE):
     """wwhd-extract info on a Cemu archive, asking for a title (the supported one; None: just list them).
     Returns (problem, message, info);
     info: {"titles": [{id, version, folder, files, bytes}], "selected", "title_id", "version", "files", "bytes"}
     (also for problem "wrong_title": what the archive does contain)."""
-    p = subprocess.run([extractor()] + (["--title", title] if title else []) + ["info", path], stdin=subprocess.DEVNULL,
+    p = subprocess.run([extractor()] + (["--title", title] + code_hash_args(title) if title else []) + ["info", path],
+                       stdin=subprocess.DEVNULL,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     err = p.stderr.decode("utf-8", "replace").strip()
     LOG.write("wwhd-extract info (archive): exit %d %s" % (p.returncode, err))
@@ -722,6 +729,11 @@ def archive_choice(info):
                              "(it contains: %s)." % found)
         raise SetupError("this archive does not contain Twilight Princess HD (USA), title 00050000-1019E500 "
                          "(it contains: %s)." % found)
+    if info.get("unlabeled") == "1":
+        # no title id or version in the archive: wwhd-extract matched the game code's SHA-256 (checked again after
+        # extracting, check_game_version), which only version 81 of the USA game has
+        return info["selected"], ["The archive doesn't name its title (folder %s); it was recognised as Twilight "
+                                  "Princess HD (USA), version 81, by its game code." % info["selected"]]
     version = int(info.get("version", -1))
     if version != SUPPORTED_VERSION:
         raise SetupError("the game in this archive is version %d; the port is built for version %d of Twilight "
@@ -900,7 +912,7 @@ def run_extract(image, keys, out, title=None):
     out on failure."""
     pr = Progress("extracting")
     if title:
-        cmd = [extractor(), "--title", title, "--progress", "extract", image, out]
+        cmd = [extractor(), "--title", title] + code_hash_args(title) + ["--progress", "extract", image, out]
     else:
         cmd = [extractor(), "--keys-stdin", "--progress", "extract", image, out]
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

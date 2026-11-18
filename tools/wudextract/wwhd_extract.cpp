@@ -25,6 +25,10 @@
 // A key file holds 16 raw bytes or 32 hex digits (whitespace ignored). Keys are never printed.
 // --title T: a title id (16 hex digits; the highest version of it is used) or a folder name
 // (0005000010143500_v0). Without it an archive with a single title uses that one.
+// Unlabeled archives: some tools write the game's folder as 0000000000000000_v0 (no title id). When T is not
+// in the archive and that unlabeled folder is its only title, it is taken as T if its code/Zelda.rpx has T's
+// SHA-256: --code-sha256 HEX, or built in for 000500001019e500 (Twilight Princess HD, USA, version 81). Info
+// then prints "unlabeled 1". Archives with other (labeled) titles are still refused.
 // --only GLOB (repeatable): extract only the files whose path in the title (code/..., content/...,
 // meta/...) matches one of the patterns, without case; '*' matches any run of characters ('/' too),
 // '?' one character. The setup uses it to take only the language files of a second disc
@@ -37,7 +41,8 @@
 // Exit codes: 0 ok, 2 usage, 3 disc key missing/malformed, 4 disc key does not match the image,
 // 5 common key missing/malformed, 6 common key wrong, 7 not a Wii U disc image or archive / unreadable,
 // 8 corrupt image or archive (hash mismatch), 9 cannot write output (disk full, permissions),
-// 10 the archive does not contain the requested title (or several titles and no --title).
+// 10 the archive does not contain the requested title (or several titles and no --title), or its only,
+//    unlabeled title is not the requested one (code/Zelda.rpx's SHA-256 differs).
 #include "crypto.h"
 #include "zarchive.h"
 
@@ -505,6 +510,41 @@ std::string describe(const std::vector<Title>& titles) {
     return s.empty() ? "no title folders" : s;
 }
 
+// titles recognised by their code when an archive leaves the title id out (0000000000000000_v0)
+struct KnownCode { const char* title; const char* file; const char* sha256; };
+const KnownCode kKnownCode[] = {
+    {"000500001019e500", "code/Zelda.rpx", "28922198517578c9261ac0b0b04a586252033d3bbcf7980b79e37638775b12a9"},
+};
+const std::string kUnlabeled = "0000000000000000";
+
+// the SHA-256 (lower-case hex) of the file at rel (a/b/c, any case) in the folder dir; "" if it isn't there
+std::string archive_file_sha256(zarchive::Reader& zr, uint32_t dir, const std::string& rel) {
+    uint32_t at = dir;
+    size_t from = 0;
+    while (from <= rel.size()) {
+        const size_t slash = rel.find('/', from);
+        const std::string part = lower(rel.substr(from, slash == std::string::npos ? std::string::npos : slash - from));
+        bool found = false;
+        for (uint32_t c : zr.children(at))
+            if (lower(zr.node(c).name) == part) { at = c, found = true; break; }
+        if (!found) return "";
+        if (slash == std::string::npos) break;
+        from = slash + 1;
+    }
+    if (!zr.node(at).is_file) return "";
+    wudcrypto::Sha256 sha;
+    zr.read_file(at, [&](const uint8_t* p, uint64_t n) { sha.update(p, (size_t)n); });
+    uint8_t d[32];
+    sha.final(d);
+    std::string hex;
+    for (uint8_t b : d) {
+        char h[3];
+        snprintf(h, sizeof h, "%02x", b);
+        hex += h;
+    }
+    return hex;
+}
+
 const Title* pick_title(const std::vector<Title>& titles, const std::string& want) {
     if (want.empty()) {
         if (titles.size() == 1) return &titles[0];
@@ -519,7 +559,7 @@ const Title* pick_title(const std::vector<Title>& titles, const std::string& wan
 }
 
 int run_archive(const std::string& cmd, const fs::path& path, const std::string& outdir, const std::string& title,
-                bool progress) {
+                bool progress, const std::string& code_sha256) {
     std::unique_ptr<zarchive::Reader> zr;
     try {
         zr = std::make_unique<zarchive::Reader>(path);
@@ -539,9 +579,39 @@ int run_archive(const std::string& cmd, const fs::path& path, const std::string&
         for (auto& x : titles)
             printf("title %s %u %s %llu %llu\n", x.id.c_str(), x.version, x.folder.c_str(), (unsigned long long)x.files,
                    (unsigned long long)x.bytes);
-        if (t)
-            printf("selected %s\ntitle_id %s\nversion %u\nfiles %llu\nbytes %llu\n", t->folder.c_str(), t->id.c_str(),
-                   t->version, (unsigned long long)t->files, (unsigned long long)t->bytes);
+        fflush(stdout);
+    }
+    // the requested title is not there, and the only title is unlabeled: it is the requested one if its code is
+    bool unlabeled = false;
+    if (!t && !title.empty() && titles.size() == 1 && titles[0].id == kUnlabeled) {
+        const std::string want = lower(title.substr(0, 16));
+        const KnownCode* known = nullptr;
+        for (auto& k : kKnownCode)
+            if (want == k.title) known = &k;
+        const std::string expect = !code_sha256.empty() ? lower(code_sha256) : known ? known->sha256 : "";
+        const std::string file = known ? known->file : "code/Zelda.rpx";
+        if (expect.empty())
+            fail(10, "the archive's only title is unlabeled (" + titles[0].folder + "), and title " + title +
+                         " can't be recognised by its code (no --code-sha256)");
+        std::string got;
+        try {
+            got = archive_file_sha256(*zr, titles[0].node, file);
+        } catch (const zarchive::Error& e) {
+            fail(e.damaged ? 8 : 7, e.msg);
+        }
+        if (got.empty())
+            fail(10, "the archive's only title is unlabeled (" + titles[0].folder + ") and has no " + file);
+        if (got != expect)
+            fail(10, "the archive's only title is unlabeled (" + titles[0].folder + "), and its " + file +
+                         " is not title " + title + "'s (SHA-256 " + got.substr(0, 16) + "..., expected " +
+                         expect.substr(0, 16) + "...)");
+        t = &titles[0];
+        unlabeled = true;
+    }
+    if (cmd == "info" && t) {
+        printf("selected %s\ntitle_id %s\nversion %u\nfiles %llu\nbytes %llu\n", t->folder.c_str(), t->id.c_str(),
+               t->version, (unsigned long long)t->files, (unsigned long long)t->bytes);
+        if (unlabeled) printf("unlabeled 1\n");
         fflush(stdout);
     }
     if (titles.empty()) fail(10, "the archive contains no Wii U title folders (named like 0005000010143500_v0)");
@@ -623,13 +693,13 @@ int usage() {
     fprintf(stderr,
             "usage: wwhd-extract [--disc-key FILE] [--common-key FILE] [--keys-stdin] [--progress] [--only GLOB]...\n"
             "                    info IMAGE | list IMAGE | extract IMAGE OUTDIR\n"
-            "       wwhd-extract [--title ID] [--progress] [--only GLOB]... info ARCHIVE.wua | list ARCHIVE.wua |\n"
+            "       wwhd-extract [--title ID [--code-sha256 HEX]] [--progress] [--only GLOB]... info ARCHIVE.wua | list ARCHIVE.wua |\n"
             "                    extract ARCHIVE.wua OUTDIR\n");
     return 2;
 }
 
 int run(const std::vector<std::string>& args) {
-    std::string disc_key_file, common_key_file, cmd, image, outdir, title;
+    std::string disc_key_file, common_key_file, cmd, image, outdir, title, code_sha256;
     bool keys_stdin = false, progress = false;
     std::vector<std::string> pos;
     for (size_t i = 1; i < args.size(); i++) {
@@ -637,6 +707,7 @@ int run(const std::vector<std::string>& args) {
         if (a == "--disc-key" && i + 1 < args.size()) disc_key_file = args[++i];
         else if (a == "--common-key" && i + 1 < args.size()) common_key_file = args[++i];
         else if (a == "--title" && i + 1 < args.size()) title = args[++i];
+        else if (a == "--code-sha256" && i + 1 < args.size()) code_sha256 = args[++i];
         else if (a == "--only" && i + 1 < args.size()) g_only.push_back(args[++i]);
         else if (a == "--keys-stdin") keys_stdin = true;
         else if (a == "--progress") progress = true;
@@ -655,13 +726,13 @@ int run(const std::vector<std::string>& args) {
     }
     fs::path img = upath(image);
     // a Cemu archive (recognized by its footer; the extension does not matter): no keys
-    if (zarchive::Reader::detect(img)) return run_archive(cmd, img, outdir, title, progress);
+    if (zarchive::Reader::detect(img)) return run_archive(cmd, img, outdir, title, progress, code_sha256);
     {
         std::string ext = lower(ustr(img.extension()));
         if (ext == ".wua") {
             std::error_code ec;
             if (!fs::is_regular_file(img, ec)) fail(7, "cannot open the archive " + ustr(img));
-            return run_archive(cmd, img, outdir, title, progress);  // reports what is wrong with it
+            return run_archive(cmd, img, outdir, title, progress, code_sha256);  // reports what is wrong with it
         }
     }
 

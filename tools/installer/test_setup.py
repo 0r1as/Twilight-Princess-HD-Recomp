@@ -126,6 +126,40 @@ class ArchiveTitles(unittest.TestCase):
         with self.assertRaisesRegex(setup.SetupError, "version 2.*built for version 81"):
             setup.archive_choice(self.info([v2], v2))
 
+    UNLABELED = _title("0000000000000000", 0)
+
+    def test_unlabeled_recognised_by_code(self):
+        # wwhd-extract selected the archive's only, unlabeled title because its code/Zelda.rpx has the expected SHA-256
+        info = self.info([self.UNLABELED], self.UNLABELED)
+        info["unlabeled"] = "1"
+        folder, notes = setup.archive_choice(info)
+        self.assertEqual(folder, "0000000000000000_v0")
+        self.assertEqual(len(notes), 1)
+        self.assertIn("recognised as Twilight Princess HD (USA), version 81, by its game code", notes[0])
+
+    def test_unlabeled_not_recognised(self):
+        # selected without the code check (an older wwhd-extract, no --title): version 0 is not the game's
+        with self.assertRaisesRegex(setup.SetupError, "version 0.*built for version 81"):
+            setup.archive_choice(self.info([self.UNLABELED], self.UNLABELED))
+        # the code didn't match (wwhd-extract selected nothing): the archive is refused
+        with self.assertRaisesRegex(setup.SetupError, "does not contain Twilight Princess HD.*0000000000000000_v0"):
+            setup.archive_choice(self.info([self.UNLABELED]))
+
+    def test_extractor_gets_the_code_hash(self):
+        seen = []
+
+        def fake_run(cmd, **kw):
+            seen.append(cmd)
+            return subprocess.CompletedProcess(cmd, 0, b"format wua\nunlabeled 1\n", b"")
+        with mock.patch.object(setup, "extractor", return_value="wwhd-extract"), \
+                mock.patch.object(setup.subprocess, "run", side_effect=fake_run):
+            problem, _, info = setup.archive_info("game.wua")
+        self.assertIsNone(problem)
+        self.assertEqual(info["unlabeled"], "1")
+        self.assertEqual(seen[0], ["wwhd-extract", "--title", setup.SUPPORTED_TITLE, "--code-sha256",
+                                   setup.SUPPORTED_RPX_SHA256, "info", "game.wua"])
+        self.assertEqual(setup.code_hash_args("0000000000000000_v0"), [])  # a folder name: no code check needed
+
     def test_title_desc(self):
         self.assertEqual(setup.title_desc("000500001019e500", 81), "Twilight Princess HD (USA), version 81")
         self.assertEqual(setup.title_desc("0005000E1019E500"), "the update for Twilight Princess HD (USA)")

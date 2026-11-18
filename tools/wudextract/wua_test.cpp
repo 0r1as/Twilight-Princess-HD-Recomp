@@ -256,6 +256,7 @@ int main(int argc, char** argv) {
     }
 
     auto check_tree = [&](const fs::path& out, const std::vector<FileSpec>& files, const std::string& what) {
+        if (!fs::is_directory(out)) return expect(false, what + " (no " + out.filename().string() + " folder)");
         bool ok = true;
         size_t n = 0;
         for (auto& f : files) ok &= fs::exists(out / f.path) && read_file(out / f.path) == f.data;
@@ -344,6 +345,71 @@ int main(int argc, char** argv) {
         write_file(work / "none.wua", none.finish());
         expect(run(x + " info " + q(work / "none.wua") + " > " + q(work / "o.txt") + " 2> " + q(work / "e_none.txt")) == 10,
                "no title folders -> exit 10");
+    }
+
+    // unlabeled archives: the game's folder without its title id (0000000000000000_v0) is taken as the requested
+    // title only when it is the archive's only title and its code/Zelda.rpx has the expected SHA-256
+    {
+        std::vector<FileSpec> game = {{"code/Zelda.rpx", pattern(50000, 41)},
+                                      {"code/app.xml", pattern(40, 42)},
+                                      {"content/res/a.arc", pattern(3000, 43)},
+                                      {"meta/meta.xml", pattern(200, 44)}};
+        std::string hex;
+        {
+            wudcrypto::Sha256 h;
+            h.update(game[0].data.data(), game[0].data.size());
+            uint8_t d[32];
+            h.final(d);
+            for (uint8_t c : d) {
+                char t[3];
+                snprintf(t, sizeof t, "%02x", c);
+                hex += t;
+            }
+        }
+        ZWriter un;
+        for (auto& f : game) un.add("0000000000000000_v0/" + f.path, f.data);
+        write_file(work / "unlabeled.wua", un.finish());
+        const std::string tp = " --title 000500001019e500";
+        expect(run(x + tp + " --code-sha256 " + hex + " info " + q(work / "unlabeled.wua") + " > " +
+                   q(work / "info_un.txt")) == 0,
+               "unlabeled only title, matching code SHA-256 -> accepted");
+        {
+            std::string s = read_text(work / "info_un.txt");
+            expect(s.find("selected 0000000000000000_v0\n") != std::string::npos && s.find("unlabeled 1\n") != std::string::npos,
+                   "  ... info selects it and says unlabeled");
+        }
+        expect(run(x + tp + " --code-sha256 " + hex + " extract " + q(work / "unlabeled.wua") + " " + q(work / "out_un") +
+                   " 2> " + q(work / "log_un.txt")) == 0,
+               "  ... and extracts it");
+        check_tree(work / "out_un", game, "  ... files match");
+        expect(run(x + tp + " info " + q(work / "unlabeled.wua") + " > " + q(work / "o_un.txt") + " 2> " +
+                   q(work / "e_un1.txt")) == 10,
+               "unlabeled, code not the built-in title's SHA-256 (wrong game) -> exit 10");
+        expect(read_text(work / "e_un1.txt").find("not title 000500001019e500's") != std::string::npos, "  ... message");
+        expect(read_text(work / "o_un.txt").find("selected") == std::string::npos, "  ... nothing selected");
+        expect(run(x + tp + " extract " + q(work / "unlabeled.wua") + " " + q(work / "out_un_bad") + " 2> " +
+                   q(work / "e_un2.txt")) == 10 &&
+                   !fs::exists(work / "out_un_bad"),
+               "  ... extract refuses, writes nothing");
+        std::string wrong = hex;
+        wrong[0] = wrong[0] == '0' ? '1' : '0';
+        expect(run(x + tp + " --code-sha256 " + wrong + " info " + q(work / "unlabeled.wua") + " > " + q(work / "o.txt") +
+                   " 2> " + q(work / "e_un3.txt")) == 10,
+               "unlabeled, wrong --code-sha256 -> exit 10");
+        ZWriter mixed_titles;
+        for (auto& f : game) mixed_titles.add("0000000000000000_v0/" + f.path, f.data);
+        mixed_titles.add("0005000010143600_v0/code/app.xml", pattern(40, 45));
+        write_file(work / "unlabeled_and_eu.wua", mixed_titles.finish());
+        expect(run(x + tp + " --code-sha256 " + hex + " info " + q(work / "unlabeled_and_eu.wua") + " > " +
+                   q(work / "o.txt") + " 2> " + q(work / "e_un4.txt")) == 10,
+               "unlabeled title beside a labeled one -> exit 10 (not the only title)");
+        ZWriter nocode;
+        nocode.add("0000000000000000_v0/meta/meta.xml", pattern(200, 44));
+        write_file(work / "unlabeled_nocode.wua", nocode.finish());
+        expect(run(x + tp + " --code-sha256 " + hex + " info " + q(work / "unlabeled_nocode.wua") + " > " +
+                   q(work / "o.txt") + " 2> " + q(work / "e_un5.txt")) == 10 &&
+                   read_text(work / "e_un5.txt").find("has no code/Zelda.rpx") != std::string::npos,
+               "unlabeled title without code/Zelda.rpx -> exit 10");
     }
 
     // --only on a European archive (a language source): just the packs and meta.xml, without case
