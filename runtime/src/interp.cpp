@@ -624,6 +624,7 @@ extern "C" void hook_02AC08B4(Cpu* c) {  // dScnPly_Draw
 // requested here, and the gyro learns whether the game aims (mods.cpp).
 // With interpolation on, each logic pass is followed by N hold passes.
 namespace warp { void service(Cpu* c); }  // warp.cpp
+namespace padscore { void service(Cpu* c); }  // hle/padscore.cpp
 extern "C" void site_02AF0EDC(Cpu* c) {
     using namespace interp;
     if (g_hold && g_phase == g_n) g_records++;  // the record pass just ended
@@ -643,6 +644,7 @@ extern "C" void site_02AF0EDC(Cpu* c) {
     warp::service(c);
     amiibo::service();
     aspect::service(c);
+    padscore::service(c);  // Pro Controller connected / disconnected (hle/padscore.cpp)
     mods::update_aiming();
     mods::builtin::step(c);
 }

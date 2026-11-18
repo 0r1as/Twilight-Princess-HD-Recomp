@@ -1,6 +1,14 @@
 // padscore: Wii Remote / Pro Controller (WPAD, KPAD). Only a Pro Controller on channel 0 exists,
 // and only while the keyboard/host controllers are set to act as one (Input menu). Struct layouts
 // and constants follow Cemu's padscore.
+//
+// TP HD learns of a controller only through its connect callback (KPADSetConnectCallback, 020086FC for
+// channels 0-3): on status 0 it probes the channel (WPADProbe) and, for a Pro Controller, registers it
+// with its controller manager (02BFB00C), which then reads it with KPADReadEx; any other status
+// unregisters the channel if it was registered. service() reports channel 0's state through it whenever
+// it changes (the mode switched in the Controls tab, a start in Pro Controller mode, a save state loaded).
+#include <atomic>
+
 #include "../crashrec.h"
 #include "../runtime.h"
 #include "../input.h"
@@ -37,8 +45,30 @@ HLE(padscore, KPADEnableDPD) {}
 HLE(padscore, KPADDisableDPD) {}
 HLE(padscore, KPADEnableMpls) {}
 HLE(padscore, KPADDisableMpls) {}
-// -> the previous callback; connections are never reported (the Pro Controller is there or not)
-HLE(padscore, KPADSetConnectCallback) { ret(c, 0); }
+std::atomic<uint32_t> g_connect_cb[4];  // KPADSetConnectCallback, per channel (0: none)
+std::atomic<int> g_reported{0};          // channel 0 as last reported: 1 connected, 0 not, -1 unknown
+
+// (chan, callback) -> the previous callback
+HLE(padscore, KPADSetConnectCallback) {
+    const uint32_t chan = arg(c, 0), cb = arg(c, 1);
+    TRACE("[pad] KPADSetConnectCallback(%u, %08X)", chan, cb);
+    ret(c, chan < 4 ? g_connect_cb[chan].exchange(cb) : 0);
+}
+
+namespace padscore {
+// a guest thread, once per logic step (main01's frame loop, interp.cpp)
+void service(Cpu* c) {
+    const uint32_t cb = g_connect_cb[0];
+    if (!cb) return;
+    const int now = connected(0) ? 1 : 0;
+    int was = g_reported;
+    if (was == now || !g_reported.compare_exchange_strong(was, now)) return;
+    LOG("[pad] Pro Controller %s (connect callback %08X)", now ? "connected" : "disconnected", cb);
+    guest_call(c, cb, {0, now ? (uint32_t)kWpadErrNone : (uint32_t)kWpadErrNoController});
+}
+// save state loaded: the restored game may know channel 0 either way, so it is reported again
+void ss_reset() { g_reported = -1; }
+}  // namespace padscore
 HLE(padscore, KPADGetMplsWorkSize) { ret(c, 0x5FE0); }
 HLE(padscore, KPADSetMplsWorkarea) {}
 HLE(padscore, WPADEnableURCC) {}

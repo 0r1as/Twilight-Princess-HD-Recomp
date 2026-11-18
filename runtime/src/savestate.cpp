@@ -75,6 +75,7 @@ void gx2_ss_save(ss::Writer& w);
 bool gx2_ss_check(ss::Reader r, std::string& why);
 void gx2_ss_load(ss::Reader& r);
 namespace aspect { void ss_reset(); }
+namespace padscore { void ss_reset(); }
 namespace dispatch { std::vector<std::pair<uint32_t, std::string>> host_functions(); }
 
 namespace interp { uint64_t logic_steps(); }
@@ -600,6 +601,7 @@ bool do_load(const std::shared_ptr<Snapshot>& s) {
     r = s->section(kSecGx2);
     gx2_ss_load(r);
     aspect::ss_reset();
+    padscore::ss_reset();  // the connect callback reports the Pro Controller again
     rumble::reset();     // an effect running before the load is not the restored game's
     r = s->section(kSecThreads);
     threads_ss_load(r);  // last: wakes the parked threads (they continue after the thaw)
