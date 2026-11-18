@@ -3,6 +3,7 @@
 #include "backend.h"
 #include "shaders.h"
 #include "settings.h"
+#include "aspect.h"
 #include <algorithm>
 #include <cmath>
 #include <chrono>
@@ -302,6 +303,15 @@ std::vector<ComposeQuad> screen_quads(Screen& screen,VkExtent2D target,int& filt
    p=gfx::display_plan_for(p,float(target.width),float(target.height),float(screen.scan->extent.width),float(screen.scan->extent.height),
                           drc?float(drc->extent.width):0,drc?float(drc->extent.height):0);
   ComposeQuad tv;tv.image=screen.scan.get();tv.sourceLinear=screen.srgb.load();tv.box=p.tv;quads.push_back(tv);
+  if(aspect::full_menu()) {
+   // black beside a full-screen menu drawn at 16:9 in a wider picture (aspect.cpp), not the game world, as
+   // the Metal renderer (display.mm)
+   const float side=p.tv.w*(1-16.0f/9.0f/aspect::game())/2;
+   for(int i=0;i<2;i++) {
+    ComposeQuad bar;bar.solid=true;bar.color[3]=1;
+    bar.box={i?p.tv.x+p.tv.w-side:p.tv.x,p.tv.y,side,p.tv.h};quads.push_back(bar);
+   }
+  }
   if(p.pip_on&&drc) {
    const float op=p.pip_opacity,bw=std::max(1.0f,std::round(p.pip.w/200.0f));
    ComposeQuad frame;frame.solid=true;frame.color[3]=0.6f*op;
