@@ -385,6 +385,13 @@ void handle_event(const SDL_Event& event){
   }
   return;
  }
+ // F6 loads slot 1 (F1 is the settings overlay's key; Shift+F1 saves slot 1), as the AppKit host
+ if((event.type==SDL_EVENT_KEY_DOWN||event.type==SDL_EVENT_KEY_UP) && event.key.scancode==SDL_SCANCODE_F6 &&
+    g_prompt_window && event.key.windowID==SDL_GetWindowID(g_prompt_window)){
+  if(event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat && !(event.key.mod&(SDL_KMOD_SHIFT|SDL_KMOD_CTRL|SDL_KMOD_ALT|SDL_KMOD_GUI)))
+   ss::request_load(1);
+  return;
+ }
  // Debugging captures, as the AppKit host has them: F12 or Ctrl+P (Cmd+P on macOS) captures the next frame
  // (to captures/), 9 records 3 s of sound activity (voice starts) without the frame capture's stall.
  if(event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat && g_prompt_window &&

@@ -393,7 +393,7 @@ void install_menu(NSWindow* tv) {
     inItem.submenu = in;
     install_display_menu(bar);  // Display: full screen, scaling, GamePad screen mode (display.mm)
 
-    // Save States: 5 slots (savestate.cpp); Shift+F1..F5 save, F2..F5 load (F1: the settings overlay)
+    // Save States: 5 slots (savestate.cpp); Shift+F1..F5 save, F2..F5 load, F6 loads slot 1 (F1: the settings overlay)
     NSMenuItem* ssItem = [bar addItemWithTitle:@"Save States" action:nil keyEquivalent:@""];
     NSMenu* sm = [[NSMenu alloc] initWithTitle:@"Save States"];
     sm.autoenablesItems = NO;
@@ -450,9 +450,10 @@ bool menu_hotkey(uint16_t code) {
     case kVK_F1: case kVK_F2: case kVK_F3: case kVK_F4: case kVK_F5: {
         int slot = code == kVK_F1 ? 1 : code == kVK_F2 ? 2 : code == kVK_F3 ? 3 : code == kVK_F4 ? 4 : 5;
         if ([NSEvent modifierFlags] & NSEventModifierFlagShift) ss::request_save(slot);
-        else if (slot != 1) ss::request_load(slot);  // F1: the settings overlay (overlay_appkit.mm)
+        else if (slot != 1) ss::request_load(slot);  // F1: the settings overlay (overlay_appkit.mm); F6 loads slot 1
         return true;
     }
+    case kVK_F6: ss::request_load(1); return true;  // slot 1 (F1 is the settings overlay)
     case kVK_ANSI_9: {
         // 3 s of sound activity (voice starts), without the frame capture's stall
         char path[96];

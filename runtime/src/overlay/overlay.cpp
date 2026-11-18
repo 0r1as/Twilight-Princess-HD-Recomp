@@ -441,7 +441,7 @@ void tab_saves() {
     if (!msg.empty()) note("%s", msg.c_str());
     heading("Save states");
     note("A save state is the whole running game, restored exactly (large, contains game data: never share it). "
-         "Shift+F1..F5 save in game, F2..F5 load slots 2 to 5; slot 1 loads here (F1 opens this menu).");
+         "Shift+F1..F5 save in game, F2..F5 load slots 2 to 5 and F6 loads slot 1 (F1 opens this menu).");
     if (ImGui::BeginTable("slots", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchProp)) {
         ImGui::TableSetupColumn("Slot", ImGuiTableColumnFlags_WidthFixed);
         ImGui::TableSetupColumn("Saved");

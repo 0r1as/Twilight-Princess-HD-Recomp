@@ -190,7 +190,8 @@ App shortcuts in the game window:
 |---|---|
 | F1 (Fn+F1 on most Mac keyboards) or Cmd+, | settings overlay |
 | Shift+F1 to Shift+F5 | save state to slot 1 to 5 |
-| F2 to F5 | load slot 2 to 5 (slot 1 loads from the overlay's Saves tab) |
+| F2 to F5 | load slot 2 to 5 |
+| F6 | load slot 1 (F1 is the settings overlay) |
 | 6 | 60 fps on / off |
 | R | next internal resolution |
 | N | 16x anisotropic filtering |
