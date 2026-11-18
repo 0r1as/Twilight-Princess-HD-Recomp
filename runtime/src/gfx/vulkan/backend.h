@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include "loader.h"
 #ifdef WWHD_SDL_HOST
 #include <SDL3/SDL.h>
@@ -118,6 +119,7 @@ struct Renderer {
  uint64_t vertexDeclaredBytes=0,vertexCopiedBytes=0;
  uint64_t vertexReuseChecks=0,vertexReuseHits=0,vertexReuseBytes=0,vertexReuseCompareNs=0;
  std::vector<Buffer> garbageBuffers;
+ std::vector<std::function<void()>> completions; // run once this recording's submission completes (on_gpu_complete)
  std::vector<bufcache::Region> garbageCacheRegions; // buffer cache regions replaced while recording
  struct RetiredImage { VkImage image;VkDeviceMemory memory;std::vector<VkImageView> views; }; std::vector<RetiredImage> garbageImages;
  // Each submission retains its pools, upload bytes and deferred objects until
@@ -138,6 +140,7 @@ struct Renderer {
   uint64_t serial=0; // Submission order on the single graphics queue.
   std::vector<UploadBlock> uploadBlocks;
   std::vector<Buffer> garbageBuffers;
+  std::vector<std::function<void()>> completions;
   std::vector<RetiredImage> garbageImages;
   std::vector<bufcache::Region> garbageCacheRegions;
  };
@@ -168,6 +171,9 @@ UploadSlice vertex_window_smoke_snapshot(uint32_t binding,uint32_t address,
     uint32_t reservation,uint32_t windowOffset,uint32_t windowLength,
     const void* data,bool poisonUnused);
 void defer_buffer(Buffer buffer);
+// run fn on the render thread once the GPU has finished the commands recorded so far (before this
+// submission's deferred buffers are freed)
+void on_gpu_complete(std::function<void()> fn);
 void defer_surface_image(VkImage image,VkDeviceMemory memory,std::vector<VkImageView> views);
 VkCommandBuffer command_buffer();
 void end_encoder();

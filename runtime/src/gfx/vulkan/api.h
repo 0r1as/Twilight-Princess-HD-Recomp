@@ -16,6 +16,7 @@ void copy_surface(uint32_t src, uint32_t srcMip, uint32_t srcSlice, uint32_t dst
 void copy_to_scan(uint32_t colorBuffer, uint32_t target);  // target: 1 = TV, 4 = DRC (GamePad)
 void swap();
 void set_frame_aspect(float a);  // aspect ratio of the TV picture from the next frame on (aspect.cpp)
+void peek_z(const uint32_t* p, uint32_t n);  // depth peeks (peekz.cpp): answers on GPU completion (surfaces.cpp)
 uint64_t frames_completed();
 void with_autorelease_pool(void (*fn)());
 void set_tv_format(uint32_t gx2Format, bool tv);

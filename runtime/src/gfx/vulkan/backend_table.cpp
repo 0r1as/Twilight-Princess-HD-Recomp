@@ -51,6 +51,7 @@ const Backend& vulkan_backend() {
         b.copy_to_scan = gfxvk::copy_to_scan;
         b.swap = gfxvk::swap;
         b.set_frame_aspect = gfxvk::set_frame_aspect;
+        b.peek_z = gfxvk::peek_z;
         b.frames_completed = gfxvk::frames_completed;
         b.with_autorelease_pool = gfxvk::with_autorelease_pool;
         b.set_tv_format = gfxvk::set_tv_format;

@@ -1133,6 +1133,58 @@ static void write_back_linear_copy(Surface* img,uint32_t layer,GX2Surface* d,uin
     img->writtenBackSeq=img->writeSeq;
     rprof::add_write_back(0,1,texels.size(),rprof::now_ns()-r0);
 }
+// Depth peeks (peekz.cpp): p = depth buffer image, then (x, y in its guest pixels, key) per point. One pixel of
+// the newest GPU depth image per point is copied when the GPU gets here; the answers go to peekz::publish when it
+// is done (24-bit, 0xFFFFFF = far), as the Metal renderer does (metal_main.mm).
+}  // namespace gfxvk
+namespace peekz { void publish(uint32_t key, uint32_t depth); }
+namespace gfxvk {
+void peek_z(const uint32_t* p,uint32_t n) {
+    Surface* depth=nullptr;
+    auto range=R.surfaces.equal_range(p[0]);
+    for(auto it=range.first;it!=range.second;++it) {
+        Surface* s=it->second.get();
+        if(s->isDepth&&s->gpuWritten&&s->image&&(!depth||s->writeSeq>depth->writeSeq))depth=s;
+    }
+    const uint32_t points=n>0?std::min<uint32_t>((n-1)/3,64):0;
+    if(!depth||!points||!depth->width||!depth->height)return;
+    const VkFormat format=depth->fmt.pixel;
+    if(format!=VK_FORMAT_D32_SFLOAT&&format!=VK_FORMAT_D32_SFLOAT_S8_UINT&&format!=VK_FORMAT_D16_UNORM)return;
+    constexpr VkDeviceSize kStride=16;  // depth copies need 4-byte aligned buffer offsets
+    Buffer b=create_readback_buffer(points*kStride);
+    std::vector<uint32_t> xy(p+1,p+1+points*3);
+    transition_image(depth,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_ACCESS_TRANSFER_READ_BIT);
+    std::vector<VkBufferImageCopy> regions(points);
+    const float sx=float(depth->extent.width)/depth->width,sy=float(depth->extent.height)/depth->height;
+    for(uint32_t i=0;i<points;i++) {
+        auto& r=regions[i];
+        r.bufferOffset=i*kStride;
+        r.imageSubresource={VK_IMAGE_ASPECT_DEPTH_BIT,0,0,1};
+        r.imageOffset={int32_t(std::min<uint32_t>(uint32_t(xy[3*i]*sx),depth->extent.width-1)),
+                       int32_t(std::min<uint32_t>(uint32_t(xy[3*i+1]*sy),depth->extent.height-1)),0};
+        r.imageExtent={1,1,1};
+    }
+    auto cmd=command_buffer();
+    vkCmdCopyImageToBuffer(cmd,depth->image,depth->layout,b.buffer,points,regions.data());
+    VkBufferMemoryBarrier barrier{VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};barrier.srcAccessMask=VK_ACCESS_TRANSFER_WRITE_BIT;barrier.dstAccessMask=VK_ACCESS_HOST_READ_BIT;
+    barrier.srcQueueFamilyIndex=barrier.dstQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;barrier.buffer=b.buffer;barrier.size=VK_WHOLE_SIZE;
+    vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_HOST_BIT,0,0,nullptr,1,&barrier,0,nullptr);
+    const uint8_t* raw=static_cast<const uint8_t*>(b.mapped);
+    on_gpu_complete([raw,format,points,xy=std::move(xy)] {
+        for(uint32_t i=0;i<points;i++) {
+            uint32_t d;
+            if(format==VK_FORMAT_D16_UNORM) {
+                uint16_t v;memcpy(&v,raw+i*kStride,2);
+                d=v==0xFFFF?0xFFFFFF:uint32_t(v)<<8;
+            } else {
+                float v;memcpy(&v,raw+i*kStride,4);
+                d=!std::isfinite(v)||v>=1.0f?0xFFFFFF:uint32_t(std::max(v,0.0f)*16777215.0f);
+            }
+            peekz::publish(xy[3*i+2],d);
+        }
+    });
+    defer_buffer(b);  // freed with this submission, after the callback above
+}
 // GX2DrawDone: linear render targets drawn since their last write-back
 void write_back_linear_targets() {
     const uint64_t t0=rprof::now_ns();uint64_t readNs=0,bytesDone=0;uint32_t count=0;

@@ -409,6 +409,7 @@ UploadSlice allocate_upload(VkDeviceSize size, VkDeviceSize alignment) {
   return slice(R.uploadBlocks.back());
 }
 void defer_buffer(Buffer b) { R.garbageBuffers.push_back(b); }
+void on_gpu_complete(std::function<void()> fn) { R.completions.push_back(std::move(fn)); }
 void defer_surface_image(VkImage image, VkDeviceMemory memory,
                          std::vector<VkImageView> views) {
   R.garbageImages.push_back({image, memory, std::move(views)});
@@ -717,6 +718,8 @@ void transition_image(Surface *s, VkImageLayout layout,
 }
 static void cleanup_submission(Renderer::Submission& slot) {
   // The submit fence has completed; slices can now be overwritten safely.
+  for (auto& fn : slot.completions) fn();  // readbacks first: their buffers are among the garbage below
+  slot.completions.clear();
   for (auto& block : slot.uploadBlocks) block.used = 0;
   for (auto b : slot.garbageBuffers) {
     if (b.mapped)
@@ -766,6 +769,7 @@ static void activate_submission(size_t index) {
   R.descriptorPool=slot.descriptorPool;
   R.uploadBlocks=std::move(slot.uploadBlocks);
   R.garbageBuffers=std::move(slot.garbageBuffers);
+  R.completions=std::move(slot.completions);
   R.garbageImages=std::move(slot.garbageImages);
   R.garbageCacheRegions=std::move(slot.garbageCacheRegions);
   R.recording=false;R.rendering=false;R.passTracked=false;
@@ -811,6 +815,7 @@ static void submit(VkSemaphore wait = VK_NULL_HANDLE,
   slot.serial=++nextSubmissionSerial;
   slot.uploadBlocks=std::move(R.uploadBlocks);
   slot.garbageBuffers=std::move(R.garbageBuffers);
+  slot.completions=std::move(R.completions);
   slot.garbageImages=std::move(R.garbageImages);
   slot.garbageCacheRegions=std::move(R.garbageCacheRegions);
   slot.pending=true;
