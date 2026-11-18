@@ -590,7 +590,7 @@ void tab_graphics() {
         if (radio(look::sharpness_name(s), look::sharpness() == s, render::feature_available(render::kFeatureLodBias)))
             post_changed([s] { look::set_sharpness(s); });
     }
-    help("Finer texture detail at a distance and at an angle (Metal). Sharpest can shimmer in motion.");
+    help("Finer texture detail at a distance and at an angle (not with MoltenVK). Sharpest can shimmer in motion.");
 
     heading("Bloom");
     for (int b = 0; b < look::kBloomModes; b++) {

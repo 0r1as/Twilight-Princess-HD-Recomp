@@ -5,6 +5,7 @@
 #include "Cafe/HW/Latte/ISA/RegDefines.h"
 #include "backend.h"
 #include "buffer_cache.h"
+#include "look.h"
 #include "render_prof.h"
 #include "runtime.h"
 #include "shaders.h"
@@ -1038,19 +1039,23 @@ VkSampler sampler(const uint32_t *words, bool compare, bool integer, bool allowA
   const bool forceAniso = allowAniso && aniso_enabled();
   const bool stats = preparation_stats_enabled();
   if (stats) ++R.cpuPreparation.samplerRequests;
-  if (memo && samplerMemo.matches(R.device, words, compare, integer, forceAniso)) {
+  // texture sharpness (look::lod_bias, the Graphics tab): part of the sampler, so a change misses the memo once
+  static int memoSharpness = -1;
+  const int sharpness = look::sharpness();
+  if (memo && sharpness == memoSharpness && samplerMemo.matches(R.device, words, compare, integer, forceAniso)) {
     if (stats) ++R.cpuPreparation.samplerMemoHits;
     return samplerMemo.value;
   }
   if (stats) ++R.cpuPreparation.samplerMapLookups;
   auto remember = [&](VkSampler value) {
-    if (memo) samplerMemo.remember(R.device, words, compare, integer, forceAniso, value);
+    if (memo) samplerMemo.remember(R.device, words, compare, integer, forceAniso, value), memoSharpness = sharpness;
     return value;
   };
   std::string key(reinterpret_cast<const char *>(words), 12);
   key.push_back(compare);
   key.push_back(integer);
   key.push_back(forceAniso);
+  key.push_back(char(sharpness));
   static std::unordered_map<std::string, VkSampler> cache;
   if (auto it = cache.find(key); it != cache.end())
     return remember(it->second);
@@ -1092,7 +1097,9 @@ VkSampler sampler(const uint32_t *words, bool compare, bool integer, bool allowA
   ci.addressModeU = addr(static_cast<uint32_t>(w.get_CLAMP_X()));
   ci.addressModeV = addr(static_cast<uint32_t>(w.get_CLAMP_Y()));
   ci.addressModeW = addr(static_cast<uint32_t>(w.get_CLAMP_Z()));
-  ci.mipLodBias = std::clamp(float(w1.get_LOD_BIAS()) / 64.f,
+  // texture sharpness: mipmapped colour textures only, as the Metal renderer biases them (metal_draw.mm)
+  const float sharpBias = static_cast<uint32_t>(w.get_MIP_FILTER()) && !integer && !compare ? look::lod_bias() : 0.0f;
+  ci.mipLodBias = std::clamp(float(w1.get_LOD_BIAS()) / 64.f + sharpBias,
                              -R.properties.limits.maxSamplerLodBias,
                              R.properties.limits.maxSamplerLodBias);
   if (!R.samplerMipLodBias && ci.mipLodBias != 0) {
@@ -2372,4 +2379,6 @@ void draw(const uint32_t *r, uint32_t prim, uint32_t count, uint32_t indexType,
   }
   rprof::mark(rprof::kSubmit);
 }
+// texture sharpness (Graphics tab) needs sampler LOD bias, which MoltenVK lacks
+bool sampler_lod_bias_supported() { return R.samplerMipLodBias; }
 } // namespace gfxvk

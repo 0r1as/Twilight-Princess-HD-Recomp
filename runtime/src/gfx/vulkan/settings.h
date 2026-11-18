@@ -12,6 +12,7 @@ int scale_filter(); // 0 smooth, 1 sharp, 2 integer
 void set_scale_filter(int filter);
 enum class GraphicsFeature { Anisotropy, FXAA, ScaleFilter, Count };
 bool graphics_feature_available(GraphicsFeature feature);
+bool sampler_lod_bias_supported();  // draw.cpp: texture sharpness (look::lod_bias) can be applied
 void set_graphics_feature_available(GraphicsFeature feature, bool available = true);
 // Presentation (swapchain present mode): 0 vsync (FIFO, default), 1 low latency (MAILBOX),
 // 2 off / may tear (IMMEDIATE). WWHD_VK_PRESENT_MODE=fifo|mailbox|immediate sets it for one start.

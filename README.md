@@ -195,7 +195,7 @@ or off (as Cemu's TP HD "Distant Fog" pack, which changes the same value). `WWHD
 
 **Texture sharpness.** Original, Sharper or Sharpest: textures seen at a distance or at an angle use
 finer detail (a level-of-detail bias of -0.5 or -1, the play settings of Cemu's TP HD pack). Sharpest
-can shimmer in motion. Metal only. `WWHD_SHARPNESS=sharper|sharpest`.
+can shimmer in motion. Metal and Vulkan (not MoltenVK). `WWHD_SHARPNESS=sharper|sharpest`.
 
 Graphics choices are remembered between starts (`defaults delete tphd` resets them); an environment
 variable overrides the saved value for that start only.
