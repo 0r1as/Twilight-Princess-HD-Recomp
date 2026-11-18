@@ -5,6 +5,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 #include "input.h"
 #include "input_map.h"
 #include "rumble.h"
@@ -13,7 +14,10 @@ static int savedSlot=0, loadedSlot=0, saveRequests=0, loadRequests=0;
 namespace ss { void request_save(int slot){savedSlot=slot;++saveRequests;} void request_load(int slot){loadedSlot=slot;++loadRequests;} }
 static int graphicsRequests=0; static char graphicsKey=0;
 namespace render { uint64_t frame_count(){return 0;} }
-namespace gfxvk { bool graphics_hotkey(char key,bool activate){if(activate){++graphicsRequests;graphicsKey=key;}return true;} }
+namespace gfxvk { bool graphics_hotkey(char key,bool activate){if(activate){++graphicsRequests;graphicsKey=key;}return true;}
+ static int captures=0; void request_capture(){++captures;} }
+static int soundTraces=0; static std::string soundTracePath;
+namespace ax { void start_sound_trace(const char* path,double){++soundTraces;soundTracePath=path;} }
 namespace mods { double game_time(){return 0;} }
 namespace interp { void set_mode(int){} uint64_t logic_steps(){return 0;} }
 namespace timebase { uint64_t now(){return 0;} }
@@ -81,6 +85,22 @@ int main(){
  }
  assert(graphicsKey=='6');input::release_keys();
  set_env("WWHD_NO_HOST_INPUT","1");graphicsEvent(SDL_SCANCODE_R,game);assert(graphicsRequests==4);set_env("WWHD_NO_HOST_INPUT",nullptr);
+ // debugging captures: F12 or Ctrl+P (Cmd+P on macOS) a frame, 9 three seconds of sound; the game window only,
+ // never on a repeat, and other modifiers leave the keys alone
+#ifdef __APPLE__
+ const SDL_Keymod shortcut=SDL_KMOD_GUI;
+#else
+ const SDL_Keymod shortcut=SDL_KMOD_LCTRL;
+#endif
+ graphicsEvent(SDL_SCANCODE_F12,game);assert(gfxvk::captures==1);
+ graphicsEvent(SDL_SCANCODE_P,game,false,SDL_EVENT_KEY_DOWN,shortcut);assert(gfxvk::captures==2);
+ graphicsEvent(SDL_SCANCODE_F12,game,true);graphicsEvent(SDL_SCANCODE_F12,controls);
+ graphicsEvent(SDL_SCANCODE_F12,game,false,SDL_EVENT_KEY_DOWN,SDL_KMOD_SHIFT);
+ graphicsEvent(SDL_SCANCODE_P,game);graphicsEvent(SDL_SCANCODE_P,game,false,SDL_EVENT_KEY_DOWN,SDL_Keymod(shortcut|SDL_KMOD_SHIFT));
+ assert(gfxvk::captures==2);input::release_keys();
+ graphicsEvent(SDL_SCANCODE_9,game);assert(soundTraces==1&&soundTracePath.rfind("captures/",0)==0&&soundTracePath.find("-sound.log")!=std::string::npos);
+ graphicsEvent(SDL_SCANCODE_9,game,true);graphicsEvent(SDL_SCANCODE_9,controls);graphicsEvent(SDL_SCANCODE_9,game,false,SDL_EVENT_KEY_DOWN,shortcut);
+ assert(soundTraces==1);input::release_keys();
  // a key held down while something else had the keyboard: its repeats don't press it in the game
  graphicsEvent(SDL_SCANCODE_RETURN,game,true);input::held_keys(held);assert(!held[input_map::key_from_id("Return")]);
  graphicsEvent(SDL_SCANCODE_RETURN,game,false,SDL_EVENT_KEY_UP);

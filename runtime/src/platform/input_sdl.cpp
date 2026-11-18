@@ -17,13 +17,16 @@
 #include <atomic>
 #include <cmath>
 #include <cstring>
+#include <ctime>
+#include <filesystem>
 #include <map>
 #include <mutex>
 #include <set>
 #include <thread>
 #include <vector>
 namespace render { uint64_t frame_count(); }
-namespace gfxvk { bool graphics_hotkey(char key, bool activate); }
+namespace gfxvk { bool graphics_hotkey(char key, bool activate); void request_capture(); }
+namespace ax { void start_sound_trace(const char* path, double seconds); }
 namespace input {
 static std::mutex g_mu;
 static bool g_keys[256]={},g_script_keys[256]={};
@@ -381,6 +384,34 @@ void handle_event(const SDL_Event& event){
    else ss::request_load(slot);
   }
   return;
+ }
+ // Debugging captures, as the AppKit host has them: F12 or Ctrl+P (Cmd+P on macOS) captures the next frame
+ // (to captures/), 9 records 3 s of sound activity (voice starts) without the frame capture's stall.
+ if(event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat && g_prompt_window &&
+    event.key.windowID==SDL_GetWindowID(g_prompt_window)){
+  const SDL_Keymod mods=event.key.mod&(SDL_KMOD_CTRL|SDL_KMOD_ALT|SDL_KMOD_GUI|SDL_KMOD_SHIFT);
+#ifdef __APPLE__
+  const SDL_Keymod shortcut=SDL_KMOD_GUI;
+#else
+  const SDL_Keymod shortcut=SDL_KMOD_CTRL;
+#endif
+  if((event.key.scancode==SDL_SCANCODE_F12&&!mods)||
+     (event.key.scancode==SDL_SCANCODE_P&&(mods&shortcut)&&!(mods&~shortcut))){
+   gfxvk::request_capture();
+   return;
+  }
+  if(event.key.scancode==SDL_SCANCODE_9&&!mods){
+   std::error_code ec;std::filesystem::create_directories("captures",ec);
+   const time_t t=time(nullptr);tm local{};
+#ifdef _WIN32
+   localtime_s(&local,&t);
+#else
+   localtime_r(&t,&local);
+#endif
+   char path[96];strftime(path,sizeof path,"captures/%Y%m%d-%H%M%S-sound.log",&local);
+   ax::start_sound_trace(path,3.0);
+   return;
+  }
  }
  // Graphics shortcuts are plain keys scoped to the game window; repeats never toggle.
  if((event.type==SDL_EVENT_KEY_DOWN||event.type==SDL_EVENT_KEY_UP) && g_prompt_window &&
