@@ -2073,7 +2073,13 @@ void init() {
 #else
   // test runs: WWHD_HIDDEN_WINDOWS=1 never puts the windows on screen (nothing pops up or takes the
   // focus); the swapchains still exist, so frame dumps and present dumps work as with visible windows
+  // Linux: high pixel density, so Wayland with desktop scaling gives a swapchain at the screen's real
+  // pixel size instead of the logical size the compositor then stretches (blurry). The swapchain, the
+  // overlay and the GamePad touch mapping already use the window's size in pixels and its pixel density.
   const SDL_WindowFlags windowFlags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE |
+#if defined(__linux__)
+                                      SDL_WINDOW_HIGH_PIXEL_DENSITY |
+#endif
                                       (hidden_windows() ? SDL_WINDOW_HIDDEN : 0);
 #endif
   R.tv.window = SDL_CreateWindow("Twilight Princess HD — Vulkan", 1280, 720, windowFlags);
