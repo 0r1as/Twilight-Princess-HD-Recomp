@@ -306,10 +306,12 @@ static void open_controller(SDL_JoystickID id){
  std::lock_guard lk(g_pads_mu);
  if(g_controllers.contains(id))return;
  if(auto* pad=SDL_OpenGamepad(id)){g_controllers[id]=pad;
+  LOG("[input] controller: %s (%04x:%04x)",SDL_GetGamepadName(pad)?SDL_GetGamepadName(pad):"?",SDL_GetGamepadVendor(pad),SDL_GetGamepadProduct(pad));
   // asking for a rumble of zero intensity also tells us whether the controller has a motor
   if(SDL_RumbleGamepad(pad,0,0,0))g_rumble_controllers.insert(id);
   if(g_sensors_on)set_sensors_locked(pad,true);}
 }
+void set_controller_hints(){ SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAM,"1"); }
 void init(){
  input_map::load_startup();
  // WWHD_NO_GAMEPAD only hides the GamePad screen window; WWHD_NO_CONTROLLERS turns off host controllers

@@ -5,6 +5,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 #include "input.h"
 #include "input_map.h"
@@ -40,6 +41,18 @@ static void set_env(const char* name,const char* value){
 }
 int main(){
  SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy");
+ // a Steam Controller without Steam: SDL's driver for it on, unless the environment says otherwise (SDL reads its
+ // own copy of the environment when a hint is set, so the variable is set there)
+ {
+  SDL_Environment* env=SDL_GetEnvironment();
+  SDL_UnsetEnvironmentVariable(env,"SDL_JOYSTICK_HIDAPI_STEAM");SDL_ResetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAM);
+  input::set_controller_hints();
+  assert(SDL_GetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAM)&&!strcmp(SDL_GetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAM),"1"));
+  SDL_SetEnvironmentVariable(env,"SDL_JOYSTICK_HIDAPI_STEAM","0",true);SDL_ResetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAM);
+  input::set_controller_hints();
+  assert(SDL_GetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAM)&&!strcmp(SDL_GetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAM),"0"));
+  SDL_UnsetEnvironmentVariable(env,"SDL_JOYSTICK_HIDAPI_STEAM");SDL_ResetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAM);
+ }
  assert(SDL_Init(SDL_INIT_EVENTS|SDL_INIT_VIDEO));
  input::init();input_map::set_current(input_map::Mapping::defaults(),false);
  auto key=[](SDL_Scancode code,bool down){SDL_Event e{};e.type=down?SDL_EVENT_KEY_DOWN:SDL_EVENT_KEY_UP;e.key.scancode=code;input::handle_event(e);};

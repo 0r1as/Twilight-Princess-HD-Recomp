@@ -2061,6 +2061,7 @@ void init() {
   // hidden test runs: no Dock icon, no activation (the app never takes the focus from the user)
   if (hidden_windows())
     SDL_SetHint(SDL_HINT_MAC_BACKGROUND_APP, "1");
+  input::set_controller_hints();  // a Steam Controller without Steam (platform/input_sdl.h)
   if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_AUDIO))
     throw std::runtime_error(SDL_GetError());
   // the Vulkan loader (vulkan-1.dll, libvulkan.so.1), loaded here rather than imported (loader.h); the

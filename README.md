@@ -122,8 +122,11 @@ F11 or Alt+Enter switches full screen. Save states are not shared between a Mac 
 **Steam.** The game can be added to Steam as a non-Steam game. Set **Start In** to the repository folder (the
 game looks for `game/` and `save/` in the current folder; otherwise use the launch options
 `--game DIR --save DIR`). With an Xbox controller, set the shortcut's Steam Input to **Default** (forced on, the
-game got no input from it in testing). Without Steam running, SDL lists a Steam Controller only with
-`SDL_JOYSTICK_HIDAPI_STEAM=1` (its driver is off by default; not yet tried in play).
+game got no input from it in testing).
+
+**Steam Controller (2026).** Without Steam running, the game reads it directly as a controller (buttons,
+sticks, triggers and gyro, checked in play): it turns on SDL's Steam Controller driver, which SDL leaves off
+by default; `SDL_JOYSTICK_HIDAPI_STEAM=0` turns it off again. With Steam running, Steam owns the controller.
 
 ## Install with the setup app
 
@@ -333,8 +336,8 @@ the shader cache in `~/Library/Caches/tphd` (both in `data/user` in a packaged f
   one Linux machine (Arch Linux, an AMD GPU with RADV). No Windows build has been made. The Vulkan renderer
   also runs on a Mac through MoltenVK (`docs/vulkan.md`).
 - Linux: F12 doesn't capture while the settings overlay is open (it has the keyboard). A Steam Controller
-  launched through Steam acted as a keyboard and mouse in the one test made (Steam stayed on its desktop
-  layout); not investigated further.
+  with the game launched through Steam acted as a keyboard and mouse in the one test made (Steam stayed on
+  its desktop layout); without Steam running it works.
 - Not yet checked: a real controller, playing whole dungeons and bosses (the disc's QA saves load and play
   from every part of the story: `tools/audit/qasaves.sh`).
 - Frame interpolation blends the camera, models (with their texture and color animation), particles,
