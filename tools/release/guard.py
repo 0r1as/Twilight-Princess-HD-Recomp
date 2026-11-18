@@ -8,7 +8,8 @@ licenses). This check rejects, by name and by content:
   - generated/recompiled game code (code_NNN.c, funcs.h with guest functions, table.c, imports.c,
     imports.json, report.txt from tools/recomp), and real-looking generated code inside any file;
   - game files: *.rpx, *.rpl, *.wux, *.wud, disc keys (*.key), tickets/TMDs (title.tik, title.tmd),
-    saves (cking*.sav, *.sav), anything under a game/ code/ content/ meta/ tree;
+    saves (cking*.sav, *.sav; Twilight Princess HD's Quest Logs ZTP<nn>.dat and COMMON.dat), anything under a
+    game/ code/ content/ meta/ tree;
   - shader caches and head starts (shaders.bin, headstart.bin, template.bin, testcache.bin, *.metallib);
   - in every text file: a 32-hex-digit string (the shape of a Wii U key; SHA-256 sums are 64 digits
     and git hashes 40, which do not match).
@@ -32,6 +33,7 @@ BAD_NAME = [
     (re.compile(r"\.key$", re.I), "key file"),
     (re.compile(r"(^|/)title\.(tik|tmd|cert)$", re.I), "disc ticket/metadata"),
     (re.compile(r"\.sav$", re.I), "save file"),
+    (re.compile(r"(^|/)(ztp\d+|common)\.dat$", re.I), "Twilight Princess HD save file"),
     (re.compile(r"(^|/)(shaders|headstart|template|testcache|mycache)\.bin$", re.I), "shader cache"),
     (re.compile(r"\.metallib$", re.I), "compiled shader cache"),
     (re.compile(r"(^|/)(game|content|meta)/"), "game file tree"),

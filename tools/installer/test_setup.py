@@ -326,6 +326,20 @@ class BundledPython(unittest.TestCase):
             self.assertIn("dropper.exe: not a file", text)
             self.assertIn("lacks files", text)
 
+    def test_guard_rejects_tp_saves(self):
+        with tempfile.TemporaryDirectory() as d:
+            pkg = os.path.join(d, "TwilightPrincessHD-x", "data")
+            os.makedirs(pkg)
+            for name in ("ZTP00.dat", "ztp01.DAT", "COMMON.dat", "notes.dat", "commonly.dat"):
+                with open(os.path.join(pkg, name), "wb") as f:
+                    f.write(b"\0" * 16)
+            problems, _ = self.guard.scan(d)
+            text = "\n".join(problems)
+            for name in ("ZTP00.dat", "ztp01.DAT", "COMMON.dat"):
+                self.assertIn(name + ": Twilight Princess HD save file", text)
+            self.assertNotIn("notes.dat", text)
+            self.assertNotIn("commonly.dat", text)
+
     def test_windows_finds_bundled_python(self):
         # what the GUI and --console-setup start (tools/installer/gui/console_setup_win.cpp)
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "gui", "console_setup_win.cpp")) as f:
