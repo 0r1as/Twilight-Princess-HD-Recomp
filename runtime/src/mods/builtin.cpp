@@ -56,7 +56,7 @@ const std::vector<Mod> kCatalogue = {
      "save it.", {}},
     {"timer", "Timer", "A timer at the top of the screen, counting the game's time since the mod was switched on "
      "(switch it off and on to reset it).", {}},
-    {"turbo", "Turbo key", "Hold T on the keyboard to run the game as fast as this Mac can (text, travel, cutscenes).", {}},
+    {"turbo", "Turbo key", "Hold T on the keyboard to run the game as fast as this computer can (text, travel, cutscenes).", {}},
     {"quick-doors", "Quick doors and scenes", "Doors, and the fades between areas, play as fast as with the turbo key.", {}},
     {"skip-cutscenes", "Fast-forward cutscenes", "Hold + in a cutscene (or any scene the game plays out) to run it as "
      "fast as with the turbo key. One the game lets you skip still skips with a press of +.", {}},
