@@ -311,7 +311,19 @@ static void open_controller(SDL_JoystickID id){
   if(SDL_RumbleGamepad(pad,0,0,0))g_rumble_controllers.insert(id);
   if(g_sensors_on)set_sensors_locked(pad,true);}
 }
-void set_controller_hints(){ SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAM,"1"); }
+const char* steam_video_driver(const char* steam_env,const char* steam_app_id,const char* wayland_display,const char* display){
+ const bool steam=(steam_env&&!strcmp(steam_env,"1"))||(steam_app_id&&*steam_app_id);
+ return steam&&wayland_display&&*wayland_display&&display&&*display?"x11,wayland":nullptr;
+}
+void set_controller_hints(){
+ SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAM,"1");
+#if defined(__linux__)&&!defined(__ANDROID__)
+ if(const char* v=steam_video_driver(getenv("SteamEnv"),getenv("SteamAppId"),getenv("WAYLAND_DISPLAY"),getenv("DISPLAY"))){
+  SDL_SetHint(SDL_HINT_VIDEO_DRIVER,v);
+  if(!getenv("SDL_VIDEO_DRIVER"))LOG("[input] started by Steam on Wayland: X11 windows (XWayland), so Steam Input follows the focus");
+ }
+#endif
+}
 void init(){
  input_map::load_startup();
  // WWHD_NO_GAMEPAD only hides the GamePad screen window; WWHD_NO_CONTROLLERS turns off host controllers

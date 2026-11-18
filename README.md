@@ -126,7 +126,11 @@ game got no input from it in testing).
 
 **Steam Controller (2026).** Without Steam running, the game reads it directly as a controller (buttons,
 sticks, triggers and gyro, checked in play): it turns on SDL's Steam Controller driver, which SDL leaves off
-by default; `SDL_JOYSTICK_HIDAPI_STEAM=0` turns it off again. With Steam running, Steam owns the controller.
+by default; `SDL_JOYSTICK_HIDAPI_STEAM=0` turns it off again. With Steam running, Steam owns the controller:
+launch the game from Steam (Steam Input). Steam switches a controller to a game's layout only while it sees the
+game's window has the focus, which it can't for a native Wayland window, so a game Steam starts on a Wayland
+desktop opens its windows through XWayland (X11); `SDL_VIDEO_DRIVER` set yourself still decides. Checked with a
+Steam Controller from a non-Steam-game shortcut.
 
 ## Install with the setup app
 
@@ -335,9 +339,9 @@ the shader cache in `~/Library/Caches/tphd` (both in `data/user` in a packaged f
 - macOS on Apple Silicon (Metal) and Linux x86-64 (Vulkan; the AppImage, or built from source), checked on
   one Linux machine (Arch Linux, an AMD GPU with RADV). No Windows build has been made. The Vulkan renderer
   also runs on a Mac through MoltenVK (`docs/vulkan.md`).
-- Linux: F12 doesn't capture while the settings overlay is open (it has the keyboard). A Steam Controller
-  with the game launched through Steam acted as a keyboard and mouse in the one test made (Steam stayed on
-  its desktop layout); without Steam running it works.
+- Linux: F12 doesn't capture while the settings overlay is open (it has the keyboard). Launched from Steam on a
+  Wayland desktop, the game's windows go through XWayland (for Steam Input), so desktop scaling may look
+  softer there.
 - Not yet checked: a real controller, playing whole dungeons and bosses (the disc's QA saves load and play
   from every part of the story: `tools/audit/qasaves.sh`).
 - Frame interpolation blends the camera, models (with their texture and color animation), particles,

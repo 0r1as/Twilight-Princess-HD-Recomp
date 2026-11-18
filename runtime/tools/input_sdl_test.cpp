@@ -40,6 +40,13 @@ static void set_env(const char* name,const char* value){
 #endif
 }
 int main(){
+ // started by Steam on a Wayland desktop with XWayland: X11 first, so Steam Input follows the focus
+ assert(!strcmp(input::steam_video_driver("1",nullptr,"wayland-1",":1"),"x11,wayland"));
+ assert(!strcmp(input::steam_video_driver(nullptr,"2849460254","wayland-1",":1"),"x11,wayland"));
+ assert(!input::steam_video_driver(nullptr,nullptr,"wayland-1",":1"));    // not started by Steam
+ assert(!input::steam_video_driver("1",nullptr,nullptr,":1"));            // an X11 desktop
+ assert(!input::steam_video_driver("1",nullptr,"wayland-1",nullptr));     // Wayland without XWayland
+ assert(!input::steam_video_driver("0","",  "wayland-1",":1"));
  SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy");
  // a Steam Controller without Steam: SDL's driver for it on, unless the environment says otherwise (SDL reads its
  // own copy of the environment when a hint is set, so the variable is set there)
