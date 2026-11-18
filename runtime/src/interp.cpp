@@ -234,6 +234,8 @@ struct PtclPrev {
 std::unordered_map<uint32_t, PtclPrev> g_ptcls;
 struct PanePrev {
     uint64_t pass = 0;
+    uint64_t drawn = ~0ull, held = ~0ull;  // the pass that recorded it, the hold pass that last drew it
+    bool multi = false;                    // drawn more than once in a pass: not blended
     uint32_t m[12] = {};
     uint8_t alpha = 0;
 };
@@ -461,7 +463,8 @@ extern "C" void hook_02B17008(Cpu* c) {
 // J2DPane::draw (aspect.cpp's hook), from the painter like particles: 2D animation runs in execute, after the
 // painter, so a pane's own matrix (+0x48) and alpha (+0xAA) are the step before on a logic pass, which records them,
 // and the new step on the hold passes after it, which draw between the two. A pane that moved far (another pane at
-// the same address, a jump) draws as it is.
+// the same address, a jump) draws as it is, and so does a pane drawn more than once in a pass (the message lights
+// below draw theirs once per letter, at each letter's place): there is no single step before to blend from.
 // a pane's alpha, which its draw uses: a J2DTextBox's (HD's vtable 100AB64C at +0xF4) is its letters' color's (the
 // object at +0x130, alpha +0xF), which J2DTextBox::rewriteAlpha (02B483E0) copies over the pane's own in the draw
 static uint32_t alpha_at(uint32_t pane) {
@@ -470,9 +473,15 @@ static uint32_t alpha_at(uint32_t pane) {
 }
 
 void interp::blend_pane(uint32_t pane, std::vector<std::pair<uint32_t, uint32_t>>& saved) {
-    if (!g_on) return;
+    static const bool off = getenv("WWHD_INTERP_PANES") && !strcmp(getenv("WWHD_INTERP_PANES"), "0");  // debug: 2D at 30 Hz
+    if (!g_on || off) return;
     if (!g_hold) {
         PanePrev& p = g_panes[pane];
+        if (p.drawn == g_passes) {  // drawn again in this pass (another letter's message light): no single "before"
+            p.multi = true;
+            return;
+        }
+        p.drawn = g_passes, p.multi = false;
         p.pass = g_records;
         read_words(pane + 0x48, 12, p.m);
         p.alpha = ld8(alpha_at(pane));
@@ -480,7 +489,10 @@ void interp::blend_pane(uint32_t pane, std::vector<std::pair<uint32_t, uint32_t>
     }
     const auto it = g_panes.find(pane);
     if (it == g_panes.end() || it->second.pass != g_records) return;
-    const PanePrev& p = it->second;
+    PanePrev& p = it->second;
+    if (p.held == g_passes) p.multi = true;  // a second draw in this hold pass
+    p.held = g_passes;
+    if (p.multi) return;
     const float t = float(g_phase) / float(g_n + 1);
     uint32_t cur[12];
     read_words(pane + 0x48, 12, cur);
@@ -497,6 +509,39 @@ void interp::blend_pane(uint32_t pane, std::vector<std::pair<uint32_t, uint32_t>
         st8(at, (uint8_t)std::lround(lerp_f(p.alpha, ld8(at), t)));
     }
 }
+
+// The message window's light (the glow behind message text; zelda_message_window_text_light, constructed by
+// 02A8330C): its draws (02A838F4, and 02A83CC0 with colours) take the caller's frame counter (float*, r4), add a
+// step, wrap it at the animation's length and draw that frame; each letter typed has its own light and counter.
+// Advanced on hold passes too, it ran twice as fast at 60 fps. On a logic pass the counter's value before the draw
+// is kept; a hold pass draws from that value again, so it shows the step's frame (30 Hz, as the rest of 2D
+// animation) and leaves the counter where the logic pass left it. All the letters' lights draw the same panes, so
+// blend_pane leaves panes drawn more than once in a pass alone (blending them flickered). WWHD_INTERP_PANES=0
+// (debug) turns the pane blending off.
+namespace {
+struct LightPrev { uint64_t pass = 0; uint32_t before = 0; };
+std::unordered_map<uint32_t, LightPrev> g_lights;  // frame counter address -> its value before the step's draw
+void light_draw(Cpu* c, void (*orig)(Cpu*)) {
+    using namespace interp;
+    const uint32_t frame = c->r[4];
+    if (!g_on || !frame) return orig(c);
+    if (!g_hold) {
+        if (g_lights.size() > 256) g_lights.clear();
+        g_lights[frame] = {g_records, ld32(frame)};
+        return orig(c);
+    }
+    const auto it = g_lights.find(frame);
+    if (it == g_lights.end() || it->second.pass != g_records) return orig(c);
+    const uint32_t after = ld32(frame);
+    st32(frame, it->second.before);
+    orig(c);
+    st32(frame, after);
+}
+}  // namespace
+extern "C" void f_02A838F4_orig(Cpu* c);
+extern "C" void hook_02A838F4(Cpu* c) { light_draw(c, f_02A838F4_orig); }
+extern "C" void f_02A83CC0_orig(Cpu* c);
+extern "C" void hook_02A83CC0(Cpu* c) { light_draw(c, f_02A83CC0_orig); }
 
 // ---------------------------------------------------------------- the pass structure
 // Hold passes skip the step's logic: in main01's loop, the pad read, audio and HD systems; in fpcM_Management,
