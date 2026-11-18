@@ -3,7 +3,7 @@
 // "Quit Twilight Princess HD?" in a sheet on the TV window:
 //   Quit                 quits (the default button, Return)
 //   Cancel               keeps playing (Esc)
-//   Save State and Quit  writes save state slot 1 (as Save States > Save to slot 1, Shift+F1), then quits
+//   Save State and Quit  writes save state slot 1 (as Save States > Save to slot 1, Shift+F2), then quits
 // Before that (boot, title screen, file select) and in test runs nothing asks (quit_prompt.h decides).
 // Closing the GamePad window still only hides it.
 //

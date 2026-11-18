@@ -196,7 +196,7 @@ static void choose_renderer(render::Api a) {
         NSMenuItem* it = [m addItemWithTitle:[NSString stringWithFormat:@"Save to slot %d  (%@)", i, label(i)] action:@selector(save:) keyEquivalent:@""];
         it.target = self;
         it.tag = i;
-        it.toolTip = [NSString stringWithFormat:@"Shortcut in game: Shift+F%d", i];
+        it.toolTip = [NSString stringWithFormat:@"Shortcut in game: Shift+F%d", i + 1];
     }
     [m addItem:[NSMenuItem separatorItem]];
     for (int i = 1; i <= ss::kSlots; i++) {
@@ -204,7 +204,7 @@ static void choose_renderer(render::Api a) {
         it.target = self;
         it.tag = i;
         it.enabled = info[i].used && info[i].compatible;
-        it.toolTip = i == 1 ? @"In game: F1 (or \u2318,) opens the settings overlay (Saves)" : [NSString stringWithFormat:@"Shortcut in game: F%d", i];
+        it.toolTip = [NSString stringWithFormat:@"Shortcut in game: F%d", i + 1];
     }
     // crash recovery (crashrec.cpp): automatic states every few minutes + recorded input
     [m addItem:[NSMenuItem separatorItem]];
@@ -393,7 +393,7 @@ void install_menu(NSWindow* tv) {
     inItem.submenu = in;
     install_display_menu(bar);  // Display: full screen, scaling, GamePad screen mode (display.mm)
 
-    // Save States: 5 slots (savestate.cpp); Shift+F1..F5 save, F2..F5 load, F6 loads slot 1 (F1: the settings overlay)
+    // Save States: 5 slots (savestate.cpp) on F2..F6: the key loads, Shift+the key saves (F1: the settings overlay)
     NSMenuItem* ssItem = [bar addItemWithTitle:@"Save States" action:nil keyEquivalent:@""];
     NSMenu* sm = [[NSMenu alloc] initWithTitle:@"Save States"];
     sm.autoenablesItems = NO;
@@ -447,13 +447,12 @@ bool menu_hotkey(uint16_t code) {
     case kVK_ANSI_8: if (render::feature_available(render::kFeatureFXAA)) render::set_fxaa(!render::fxaa()); break;
     case kVK_ANSI_R: cycle_res(); break;
     case kVK_F12: render::request_capture(); return true;  // and ⌘P, the menu item's shortcut
-    case kVK_F1: case kVK_F2: case kVK_F3: case kVK_F4: case kVK_F5: {
-        int slot = code == kVK_F1 ? 1 : code == kVK_F2 ? 2 : code == kVK_F3 ? 3 : code == kVK_F4 ? 4 : 5;
+    case kVK_F2: case kVK_F3: case kVK_F4: case kVK_F5: case kVK_F6: {  // slots 1..5 (F1: the settings overlay)
+        int slot = code == kVK_F2 ? 1 : code == kVK_F3 ? 2 : code == kVK_F4 ? 3 : code == kVK_F5 ? 4 : 5;
         if ([NSEvent modifierFlags] & NSEventModifierFlagShift) ss::request_save(slot);
-        else if (slot != 1) ss::request_load(slot);  // F1: the settings overlay (overlay_appkit.mm); F6 loads slot 1
+        else ss::request_load(slot);
         return true;
     }
-    case kVK_F6: ss::request_load(1); return true;  // slot 1 (F1 is the settings overlay)
     case kVK_ANSI_9: {
         // 3 s of sound activity (voice starts), without the frame capture's stall
         char path[96];

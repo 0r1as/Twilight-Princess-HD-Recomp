@@ -50,7 +50,7 @@ filter), and `gfx/vulkan/present.cpp` draws it. The TV window title starts with 
 | Internal resolution, 16x AF | yes | yes |
 | Aspect ratio (16:10, 21:9, 32:9, match window) | yes | yes |
 | Frame interpolation (60, 120, 240 fps) | yes | yes |
-| Save states (menu, Shift+F1..F5 / F1..F5) | yes | yes (a state loads with either renderer) |
+| Save states (menu, Shift+F2..F6 / F2..F6) | yes | yes (a state loads with either renderer) |
 | Controls window, keyboard, game controllers, mod packages | yes | yes |
 | Frame dumps `WWHD_DUMP_FRAMES`, `WWHD_DUMP_PRESENT` | yes | yes |
 | Capture frame (⌘P) | pictures + draw log | pictures only (no draw log) |
@@ -421,8 +421,8 @@ roughly 30 FPS while other CPU workloads were active.
 
 ## Save-state shortcuts
 
-In the macOS app, the Save States menu and keys work as with Metal. In the SDL game window, `F1` through `F5` load slots 1 through 5;
-`Shift+F1` through `Shift+F5` save those slots. Repeated keydown events are ignored,
+In the macOS app, the Save States menu and keys work as with Metal. In the SDL game window, `F2` through `F6` load slots 1 through 5;
+`Shift+F2` through `Shift+F6` save those slots (`F1` is the settings overlay's). Repeated keydown events are ignored,
 and these keys do not reach the game's button mapping. Host-input-disabled scripted
 runs do not accept the shortcuts. State files remain in the configured state directory.
 

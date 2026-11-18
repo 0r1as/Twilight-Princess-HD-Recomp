@@ -147,9 +147,9 @@ const char* reserved_key(int code) {
     case kVK_ANSI_8: return "Graphics › FXAA";
     case kVK_ANSI_9: return "Graphics › Record sound activity";
     case kVK_F12: return "Graphics › Capture frame";
-    case kVK_F1: return "the settings overlay (F1; Shift+F1 saves slot 1, F6 loads it)";
-    case kVK_F2: case kVK_F3: case kVK_F4: case kVK_F5: return "Save States (F2-F5 load, Shift+F1-F5 save)";
-    case kVK_F6: return "Save States (F6 loads slot 1)";
+    case kVK_F1: return "the settings overlay (F1)";
+    case kVK_F2: case kVK_F3: case kVK_F4: case kVK_F5: case kVK_F6:
+        return "Save States (F2-F6 load slots 1-5, Shift+F2-F6 save)";
     case kVK_Escape: return "cancelling a key assignment";
     case kVK_Command: case kVK_RightCommand: return "menu shortcuts (⌘)";
     default: return nullptr;

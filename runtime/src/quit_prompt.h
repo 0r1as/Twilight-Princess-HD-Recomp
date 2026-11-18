@@ -8,7 +8,7 @@
 
 namespace quitprompt {
 
-// the save state slot "Save State and Quit" writes (Save States menu, Shift+F1)
+// the save state slot "Save State and Quit" writes (Save States menu, Shift+F2)
 constexpr int kSaveSlot = 1;
 
 // a save file is being played: not before the game's first stage (boot), nor on the title screen and file select

@@ -441,7 +441,7 @@ void tab_saves() {
     if (!msg.empty()) note("%s", msg.c_str());
     heading("Save states");
     note("A save state is the whole running game, restored exactly (large, contains game data: never share it). "
-         "Shift+F1..F5 save in game, F2..F5 load slots 2 to 5 and F6 loads slot 1 (F1 opens this menu).");
+         "In game, F2..F6 load slots 1 to 5 and Shift+F2..F6 save them (F1 opens this menu).");
     if (ImGui::BeginTable("slots", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchProp)) {
         ImGui::TableSetupColumn("Slot", ImGuiTableColumnFlags_WidthFixed);
         ImGui::TableSetupColumn("Saved");
@@ -1531,7 +1531,7 @@ bool key(int code, bool down, bool repeat, int mods) {
         return true;
     }
 #endif
-    // F1 (no modifiers; Shift+F1 saves slot 1) toggles; Esc closes
+    // F1 (no modifiers) toggles; Esc closes
     if (code == kVK_F1 && !(mods & (kShift | kCtrl | kAlt | kSuper))) {
         if (down && !repeat && !g_capturing_keys.load()) set_open(!is_open());
         if (!g_capturing_keys.load()) return true;

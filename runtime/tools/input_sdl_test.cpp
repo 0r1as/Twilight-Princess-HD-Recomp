@@ -61,7 +61,7 @@ int main(){
  auto* controls=SDL_CreateWindow("Controls",32,32,SDL_WINDOW_HIDDEN);
  assert(game&&controls);input::set_prompt_window(game);
  auto stateKey=[&](int slot,SDL_Keymod mod,bool repeat=false,SDL_Window* window=nullptr,Uint32 type=SDL_EVENT_KEY_DOWN){
-  SDL_Event e{};e.type=type;e.key.scancode=SDL_Scancode(SDL_SCANCODE_F1+slot-1);
+  SDL_Event e{};e.type=type;e.key.scancode=SDL_Scancode(SDL_SCANCODE_F2+slot-1);  // F2..F6: slots 1..5
   e.key.windowID=SDL_GetWindowID(window?window:game);e.key.mod=mod;e.key.repeat=repeat;input::handle_event(e);
  };
  for(int slot=1;slot<=5;++slot){
@@ -72,24 +72,20 @@ int main(){
  const int saves=saveRequests,loads=loadRequests;
  stateKey(1,SDL_KMOD_LSHIFT,true);stateKey(1,SDL_KMOD_NONE,false,controls);
  stateKey(1,SDL_KMOD_LSHIFT,false,nullptr,SDL_EVENT_KEY_UP);
- stateKey(7,SDL_KMOD_NONE);input::set_prompt_window(nullptr);stateKey(1,SDL_KMOD_NONE);  // F7: not a state key (F6 loads slot 1, below)
+ stateKey(6,SDL_KMOD_NONE);input::set_prompt_window(nullptr);stateKey(1,SDL_KMOD_NONE);  // F7: not a state key
  assert(saveRequests==saves&&loadRequests==loads);
  input::set_prompt_window(game);input::release_keys();
  for(int slot=1;slot<=5;++slot)stateKey(slot,SDL_KMOD_NONE,true);
  input::held_keys(held);
- for(const char* id:{"F1","F2","F3","F4","F5"})assert(!held[input_map::key_from_id(id)]);
- // F6 loads slot 1 (F1 is the settings overlay): the game window only, not on a repeat or with a modifier
+ for(const char* id:{"F2","F3","F4","F5","F6"})assert(!held[input_map::key_from_id(id)]);
+ // F1 is the settings overlay's: neither it nor Shift+F1 loads or saves a state
  {
-  auto f6=[&](SDL_Keymod mod,bool repeat=false,SDL_Window* window=nullptr){
-   SDL_Event e{};e.type=SDL_EVENT_KEY_DOWN;e.key.scancode=SDL_SCANCODE_F6;e.key.windowID=SDL_GetWindowID(window?window:game);
-   e.key.mod=mod;e.key.repeat=repeat;input::handle_event(e);
-  };
-  const int loads6=loadRequests,saves6=saveRequests;loadedSlot=0;
-  f6(SDL_KMOD_NONE);assert(loadedSlot==1&&loadRequests==loads6+1);
-  f6(SDL_KMOD_NONE,true);f6(SDL_KMOD_LSHIFT);
-  input::held_keys(held);assert(!held[input_map::key_from_id("F6")]);  // the game window's F6 never reaches the game
-  f6(SDL_KMOD_NONE,false,controls);
-  assert(loadRequests==loads6+1&&saveRequests==saves6);
+  const int s1=saveRequests,l1=loadRequests;
+  for(SDL_Keymod mod:{SDL_KMOD_NONE,SDL_KMOD_LSHIFT}){
+   SDL_Event e{};e.type=SDL_EVENT_KEY_DOWN;e.key.scancode=SDL_SCANCODE_F1;e.key.windowID=SDL_GetWindowID(game);e.key.mod=mod;
+   input::handle_event(e);
+  }
+  assert(saveRequests==s1&&loadRequests==l1);
   input::release_keys();
  }
  auto graphicsEvent=[&](SDL_Scancode code,SDL_Window* window, bool repeat=false, Uint32 type=SDL_EVENT_KEY_DOWN,SDL_Keymod mod=SDL_KMOD_NONE){SDL_Event e{};e.type=type;e.key.scancode=code;e.key.windowID=SDL_GetWindowID(window);e.key.repeat=repeat;e.key.mod=mod;input::handle_event(e);};

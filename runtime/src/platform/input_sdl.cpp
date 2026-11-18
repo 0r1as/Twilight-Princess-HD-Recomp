@@ -377,19 +377,13 @@ void handle_event(const SDL_Event& event){
  // Save states belong to the game window, not auxiliary controls/text windows.
  if((event.type==SDL_EVENT_KEY_DOWN||event.type==SDL_EVENT_KEY_UP) &&
     g_prompt_window && event.key.windowID==SDL_GetWindowID(g_prompt_window) &&
-    event.key.scancode>=SDL_SCANCODE_F1 && event.key.scancode<=SDL_SCANCODE_F5){
+    event.key.scancode>=SDL_SCANCODE_F2 && event.key.scancode<=SDL_SCANCODE_F6){
+  // F2..F6 are slots 1..5 (F1 is the settings overlay's): the key loads, Shift+the key saves
   if(event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat){
-   const int slot=int(event.key.scancode-SDL_SCANCODE_F1)+1;
+   const int slot=int(event.key.scancode-SDL_SCANCODE_F2)+1;
    if(event.key.mod&SDL_KMOD_SHIFT)ss::request_save(slot);
    else ss::request_load(slot);
   }
-  return;
- }
- // F6 loads slot 1 (F1 is the settings overlay's key; Shift+F1 saves slot 1), as the AppKit host
- if((event.type==SDL_EVENT_KEY_DOWN||event.type==SDL_EVENT_KEY_UP) && event.key.scancode==SDL_SCANCODE_F6 &&
-    g_prompt_window && event.key.windowID==SDL_GetWindowID(g_prompt_window)){
-  if(event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat && !(event.key.mod&(SDL_KMOD_SHIFT|SDL_KMOD_CTRL|SDL_KMOD_ALT|SDL_KMOD_GUI)))
-   ss::request_load(1);
   return;
  }
  // Debugging captures, as the AppKit host has them: F12 or Ctrl+P (Cmd+P on macOS) captures the next frame
