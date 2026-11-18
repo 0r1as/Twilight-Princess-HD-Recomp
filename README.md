@@ -36,7 +36,8 @@ DLC are not; the code is tied to that one `Zelda.rpx` (SHA-256
 Work in progress. The game boots through the logos to the title screen, a new file can be started
 (name entry, horse name, the opening at the spring) and Ordon Village can be walked around with the
 keyboard. Every one of the 78 stages on the disc loads, draws and keeps running when warped to.
-Graphics, the HUD and sound work. A real controller has not been tested yet.
+Graphics, the HUD and sound work, on macOS (Metal) and on Linux (x86-64, Vulkan). On Linux an Xbox
+controller has been played with, as the GamePad and in Pro Controller mode (the game on the TV only).
 
 ## Requirements
 
@@ -126,8 +127,25 @@ game got no input from it in testing). Without Steam running, SDL lists a Steam 
 
 ## Install with the setup app
 
-No builds are published. To get the setup app, package the runtime yourself; the package is built
-against placeholder code, so it contains no game code:
+**Linux (x86-64):** download the `.AppImage` from the
+[Releases](https://github.com/0r1as/Twilight-Princess-HD-Recomp/releases) page, make it executable and start it:
+
+```sh
+chmod +x TwilightPrincessHD-*-linux-x86_64.AppImage
+./TwilightPrincessHD-*-linux-x86_64.AppImage
+```
+
+It contains no game code or game files. The first start asks for your game (a disc image and its keys, a
+Cemu archive, or an extracted game folder), checks it, extracts it, translates its code and compiles it with
+a pinned compiler (zig, downloaded once, about 55 MB): about 4.3 GB of disk and a few minutes. Later starts
+open the game directly; `--setup` brings the setup back (repair, another game folder). It needs a Vulkan 1.3
+driver and runs on distributions with glibc 2.35 or newer; the setup uses the system's Python 3.8 or newer, or
+downloads a pinned copy of Python once (about 75 MB). The game, saves and
+settings are kept in `~/.local/share/tphd` and `~/.config/tphd`, or, after `--appimage-portable-home`, in a
+`.home` folder next to the AppImage. Without FUSE, start it with `--appimage-extract-and-run`.
+
+**macOS:** no builds are published. To get the setup app, package the runtime yourself; the package is
+built against placeholder code, so it contains no game code:
 
 ```sh
 python3 tools/recomp/stubgen.py build/gen-stub
@@ -311,9 +329,9 @@ the shader cache in `~/Library/Caches/tphd` (both in `data/user` in a packaged f
 
 ## Known limitations
 
-- macOS on Apple Silicon (Metal) and Linux x86-64 built from source (Vulkan, checked on one AMD GPU). The
-  setup app and release packages have only been made and tried for macOS; no Windows build has been made. The Vulkan renderer also
-  runs on a Mac through MoltenVK (`docs/vulkan.md`).
+- macOS on Apple Silicon (Metal) and Linux x86-64 (Vulkan; the AppImage, or built from source), checked on
+  one Linux machine (Arch Linux, an AMD GPU with RADV). No Windows build has been made. The Vulkan renderer
+  also runs on a Mac through MoltenVK (`docs/vulkan.md`).
 - Linux: F12 doesn't capture while the settings overlay is open (it has the keyboard). A Steam Controller
   launched through Steam acted as a keyboard and mouse in the one test made (Steam stayed on its desktop
   layout); not investigated further.
