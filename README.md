@@ -109,6 +109,11 @@ cmake --build build/linux-game -j$(nproc) --target wwhd
 ```
 
 Settings, controls, save states and the Vulkan shader cache are kept in `~/.config/tphd` (`$XDG_CONFIG_HOME`).
+A portable package of the setup app for Linux is made like the macOS one, with the pinned zig toolchain
+(`tools/installer/toolchains.json`), and `python3 tools/release/appimage.py <package folder> --out <dir>` packs it
+as one AppImage (pinned appimagetool and AppImage runtime, SHA-256 checked); the AppImage keeps the game, saves
+and settings in `~/.local/share/tphd` and `~/.config/tphd`, or in `<file>.AppImage.home` after
+`--appimage-portable-home`.
 `--renderer-smoke` checks the Vulkan renderer without the game (`docs/vulkan.md`). The keys differ from a
 Mac's where the Mac uses Cmd: Ctrl+P (or F12) captures a frame, Ctrl+G shows or hides the GamePad screen and
 F11 or Alt+Enter switches full screen. Save states are not shared between a Mac and Linux (another compression).
