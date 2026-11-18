@@ -23,6 +23,7 @@
 #include "controls_view.h"
 #include "../amiibo.h"
 #include "../aspect.h"
+#include "../button_prompts.h"
 #include "../look.h"
 #include "../crashrec.h"
 #include "../game_languages.h"
@@ -1214,6 +1215,22 @@ void tab_controls() {
                     ImGui::GetFrameHeight() - ImGui::GetStyle().ItemInnerSpacing.x);
     ImGui::Checkbox("List view", &U.list_view);
     help("A plain table of all inputs instead of the controller drawing");
+    // how the game draws its A/B/X/Y prompts (button_prompts.h); read when the game loads its HUD, so a change
+    // applies at the next start
+    {
+        const int prompts = button_prompts::saved();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Button prompts");
+        ImGui::SameLine();
+        if (radio("Original (Wii U)", prompts == button_prompts::kOriginal))
+            hostui::post([] { button_prompts::set_saved(button_prompts::kOriginal); });
+        ImGui::SameLine();
+        if (radio("Xbox letters", prompts == button_prompts::kXbox))
+            hostui::post([] { button_prompts::set_saved(button_prompts::kXbox); });
+        help("The buttons keep their places; Xbox letters labels each with the Xbox letter at that place: "
+             "A shows as B, B as A, X as Y and Y as X");
+        if (prompts != button_prompts::active()) note("Button prompts: takes effect at the next start.");
+    }
     // status line: capture prompt > note > hovered input > duplicates > help
     std::string status;
     ImVec4 sc(0.70f, 0.78f, 0.84f, 1.0f);

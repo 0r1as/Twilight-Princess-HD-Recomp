@@ -131,7 +131,10 @@ Closing the TV window (or Cmd+W, Cmd+Q) quits; closing the GamePad window only h
 Everything can be remapped in the settings overlay's Controls tab or in **Input > Controls...**,
 saved to `~/Library/Application Support/TPHD/controls.json`. Game controllers are read too, with
 buttons mapped by position (the bottom face button is the Wii U's B). Keyboard and controllers act
-as the Wii U GamePad or as a Pro Controller (Input menu or Controls tab).
+as the Wii U GamePad or as a Pro Controller (Input menu or Controls tab). **Button prompts** in the
+Controls tab can draw the game's A/B/X/Y prompts with the Xbox letter of the button at each place (the
+Wii U's A shows as B, and so on) from the next start; `WWHD_BUTTON_PROMPTS=original|xbox` for one start
+([notes](docs/button-prompts.md)).
 
 App shortcuts in the game window:
 
