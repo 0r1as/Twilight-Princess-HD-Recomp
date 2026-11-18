@@ -1521,14 +1521,39 @@ static void fail_no_package(const PackageSearch& r) {
 #endif
 }
 
-// The game, saves and settings go into the data folder (in the release folder unless --data-dir):
-// check it can be written before anything starts, so a read-only place (a disk image, a read-only drive or
-// share, a folder of another user) is reported as such and not as a failure halfway through the setup.
+// The game, saves and settings go into the data folder: --data-dir, else the release folder's data/ for a
+// portable release (portable.txt next to tools/), else the per-user folder setup.py uses (default_data_dir):
+// an AppImage is mounted read-only and has no portable.txt. It is checked to be writable before anything
+// starts, so a read-only place (a disk image, a read-only drive or share, a folder of another user) is
+// reported as such and not as a failure halfway through the setup.
+static bool pkg_is_portable(const std::string& pkg) {
+    SDL_PathInfo info;
+    return !pkg.empty() && SDL_GetPathInfo((pkg + "portable.txt").c_str(), &info);
+}
+
 static std::string data_dir_of(const std::string& pkg, const std::vector<std::string>& passthru) {
-    std::string data = pkg + "data";
-    for (size_t i = 0; i + 1 < passthru.size(); i++)
-        if (passthru[i] == "--data-dir") data = passthru[i + 1];
-    return data;
+    for (size_t i = 0; i < passthru.size(); i++) {
+        const std::string& s = passthru[i];
+        if (s == "--") break;  // game options
+        if (s == "--data-dir" && i + 1 < passthru.size() && !passthru[i + 1].empty()) return passthru[i + 1];
+        if (s.rfind("--data-dir=", 0) == 0 && s.size() > strlen("--data-dir=")) return s.substr(strlen("--data-dir="));
+    }
+    if (pkg_is_portable(pkg)) return pkg + "data";
+#if defined(__APPLE__)
+    const char* home = SDL_getenv("HOME");
+    return std::string(home ? home : ".") + "/Library/Application Support/tphd";
+#elif defined(_WIN32)
+    // setup.py: os.environ.get("LOCALAPPDATA") or expanduser("~\\AppData\\Local"), then "TPHD"
+    const char* root = SDL_getenv("LOCALAPPDATA");
+    if (root && *root) return std::string(root) + "\\TPHD";
+    const char* profile = SDL_getenv("USERPROFILE");  // what expanduser("~") reads here
+    return std::string(profile ? profile : ".") + "\\AppData\\Local\\TPHD";
+#else
+    const char* xdg = SDL_getenv("XDG_DATA_HOME");
+    if (xdg && *xdg) return std::string(xdg) + "/tphd";
+    const char* home = SDL_getenv("HOME");
+    return std::string(home ? home : ".") + "/.local/share/tphd";
+#endif
 }
 
 static bool check_writable(const std::string& data) {
@@ -1547,11 +1572,14 @@ static bool check_writable(const std::string& data) {
     }
     if (what.empty()) return true;
     std::string err = SDL_GetError();
-    fail("The release folder cannot be written to: " + what + " failed (" + err + "). Setup keeps the game, saves "
-         "and settings in " + data + ".",
-         "Copy the whole unzipped folder to a place you can write to (for example your home folder or a Games "
-         "folder; not a disk image, a read-only drive or another user's folder) and open Twilight Princess HD from there.",
-         A.pkg);
+    const bool portable = pkg_is_portable(A.pkg);
+    fail("The folder for the game, saves and settings cannot be written to: " + what + " failed (" + err + ").",
+         portable ? "Copy the whole unzipped folder to a place you can write to (for example your home folder or a "
+                   "Games folder; not a disk image, a read-only drive or another user's folder) and open Twilight "
+                   "Princess HD from there."
+                  : "Setup keeps the game, saves and settings in " + data + ". Check that you can write there, or "
+                   "choose another place (start with --data-dir FOLDER), then open Twilight Princess HD again.",
+         portable ? A.pkg : data);
     return false;
 }
 
@@ -1721,14 +1749,12 @@ static void save_shot(SDL_Renderer* r, const std::string& name) {
 // The game in this folder is built for this release and its game files are there: start it directly.
 static bool game_ready(const std::string& pkg, const std::vector<std::string>& passthru) {
     SDL_PathInfo info;
-    if (!SDL_GetPathInfo((pkg + "portable.txt").c_str(), &info)) return false;  // only portable releases
-    std::string data = pkg + "data";
-    for (size_t i = 0; i + 1 < passthru.size(); i++)
-        if (passthru[i] == "--data-dir") data = passthru[i + 1];
+    std::string data = data_dir_of(pkg, passthru);  // the release's data/, or the per-user folder (an AppImage)
     J st, man;
     if (!parse_json(read_file(data + "/install.json"), st) || !parse_json(read_file(pkg + "sdk/manifest.json"), man))
         return false;
     if (st.str("version") != man.str("version") || st.boolean("placeholder_code")) return false;
+    if (!st.str("app").empty()) return false;  // macOS non-portable: started with `open <app>` (setup.py launch)
     auto resolve = [&](std::string p) {  // install.json keeps paths inside data/ relative to it
         bool abs = !p.empty() && (p[0] == '/' || p[0] == '\\' || (p.size() > 1 && p[1] == ':'));
         return p.empty() || abs ? p : data + "/" + p;
