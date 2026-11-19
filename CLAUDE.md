@@ -39,6 +39,8 @@ make -C build/cmake -j$(sysctl -n hw.ncpu) tphd
   # renderer check without the game (lavapipe + validation):
   VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json TPHD_VK_VALIDATION=1 TPHD_HIDDEN_WINDOWS=1 ./build/linux/tphd --renderer-smoke
   ```
+- Windows: cross-compiled from Linux with llvm-mingw (`cmake/toolchains/llvm-mingw-cross.cmake`, `-DLLVM_MINGW=...`,
+  `-DCMAKE_EXE_LINKER_FLAGS=-static`); tests and the game run under Wine. README "Build for Windows".
 - Tests are CTest targets in `CMakeLists.txt` (sources in `runtime/tools/*_test.cpp`, `tools/wudextract/*_test.cpp`):
   build them, then `ctest --test-dir build/cmake` or one with `ctest --test-dir build/cmake -R <name>` (e.g. `write_watch`).
 - Installer helpers: `python3 tools/installer/test_setup.py`.

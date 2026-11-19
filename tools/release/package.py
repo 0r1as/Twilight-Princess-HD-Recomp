@@ -46,7 +46,7 @@ INSTALLER_FILES = [
     "tools/installer/README.md",
 ]
 SETUP_APP = "Twilight Princess HD"
-PORTABLE_TXT = """Twilight Princess HD (native macOS port), portable release.
+PORTABLE_TXT = """Twilight Princess HD (native PC port), portable release.
 
 Start "Twilight Princess HD". The first start prepares the game once from your own disc dump (releases never
 contain game code, so it is built here); later starts launch the game directly.
@@ -57,7 +57,7 @@ save states, shader caches and logs. Nothing goes to your user folders unless yo
 To remove everything, delete this folder.
 
 Hold Shift while starting Twilight Princess HD, or start it with --setup, to repair, update or change
-the game. The same setup in a terminal: tools/Setup in Terminal.command.
+the game. The same setup in a terminal: {terminal}.
 
 This file marks the folder as portable; without it, setup uses the per-user folders of earlier releases.
 """
@@ -400,8 +400,10 @@ def main():
     else:
         copy(os.path.join(inst, "install-linux.sh"), os.path.join(pkg, "tools", "setup-in-terminal.sh"))
     # portable release: everything stays in this folder (setup.py and the game look for this file)
+    terminal = ("tools/Setup in Terminal.command" if a.platform.startswith("macos") else
+                "tools\\Setup in a console window.bat" if a.platform.startswith("windows") else "tools/setup-in-terminal.sh")
     with open(os.path.join(pkg, "portable.txt"), "w") as f:
-        f.write(PORTABLE_TXT)
+        f.write(PORTABLE_TXT.replace("{terminal}", terminal))
 
     if a.setup_gui:
         add_setup_gui(pkg, a.platform, a.setup_gui, a.version)

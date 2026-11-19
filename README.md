@@ -133,6 +133,31 @@ game's window has the focus, which it can't for a native Wayland window, so a ga
 desktop opens its windows through XWayland (X11); `SDL_VIDEO_DRIVER` set yourself still decides. Checked with a
 Steam Controller from a non-Steam-game shortcut.
 
+## Build for Windows
+
+The Windows build is cross-compiled from Linux with llvm-mingw 20260922, the toolchain the Windows setup
+downloads to build the game (its Linux-hosted build of the same version), and tested under Wine:
+
+```sh
+python3 tools/recomp/stubgen.py build/gen-stub
+cmake -S . -B build/win-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/llvm-mingw-cross.cmake \
+  -DLLVM_MINGW=/path/to/llvm-mingw-20260922-ucrt-ubuntu-22.04-x86_64 -DCMAKE_BUILD_TYPE=Release \
+  -DGEN_DIR=$PWD/build/gen-stub -DCMAKE_EXE_LINKER_FLAGS=-static -DTPHD_BUNDLED_DEPS=ON -DTPHD_SETUP_GUI=ON \
+  -DVulkan_INCLUDE_DIR=/usr/include -DVulkan_LIBRARY=/usr/include/vulkan/vulkan.h
+cmake --build build/win-rel && ctest --test-dir build/win-rel        # the tests run under Wine
+python3 tools/release/package.py --build build/win-rel --platform windows-x86_64 --version 0.9.1 \
+  --out build/dist --toolchain llvm-mingw-20260922 --setup-gui build/win-rel/tphd-setup.exe \
+  --windows-python python-3.13.16-embed-amd64.zip --runtime-file build/win-rel/SDL3.dll
+python3 tools/release/guard.py build/dist/*windows*.zip
+```
+
+`-static` puts libc++ into each program, so the setup (`Twilight Princess HD.exe`) and the extractor are single
+files and the game needs only `SDL3.dll` beside it. `TPHD_BUNDLED_DEPS` builds SDL3, glslang, zlib, LZ4 and zstd
+from pinned sources (downloaded at configure time; `FETCHCONTENT_SOURCE_DIR_<NAME>` points at a local copy). The
+renderer loads Vulkan at run time, so only the Vulkan headers are needed. The embeddable Python is the one pinned
+in `tools/installer/toolchains.json` (`python.windows`); `package.py` checks it against
+`tools/release/python-windows-files.json`. Add the `--license` options of a release (see the Linux package).
+
 ## Install with the setup app
 
 **Linux (x86-64):** download the `.AppImage` from the
@@ -160,6 +185,15 @@ close it and starts it again afterwards. The entry starts the AppImage (or the b
 that already starts the same program keeps its name and gets the pictures instead of a second entry. It is added
 for the Steam account that signed in last, and the first change keeps a copy of Steam's file as
 `shortcuts.vdf.tphd-backup`.
+
+**Windows (x86-64):** unzip `TwilightPrincessHD-*-windows-x86_64.zip` and start **Twilight Princess HD**. The
+first start asks for your game (a disc image and its keys, a Cemu archive, or an extracted game folder), checks
+it, translates its code and compiles it with a pinned compiler (llvm-mingw, downloaded once, about 180 MB); the
+setup brings its own Python. It needs a Vulkan 1.3 driver and Windows 10 or newer. The release is portable:
+everything stays in the folder's `data/` (delete `portable.txt` to keep the game in `%LOCALAPPDATA%\TPHD` with
+Start menu and desktop shortcuts instead). Later starts open the game; hold **Shift** while starting it to repair
+or change the game. `tools\Setup in a console window.bat` runs the same setup as text. Checked under Wine
+(setup, compile, game); not yet on a Windows PC.
 
 **macOS:** no builds are published. To get the setup app, package the runtime yourself; the package is
 built against placeholder code, so it contains no game code:
