@@ -362,7 +362,20 @@ void read_controller() {
 
 void feed_gamepad(ImGuiIO& io, bool enabled) {
     using namespace input_map;
-    auto key = [&](ImGuiKey k, int p) { io.AddKeyAnalogEvent(k, enabled && U.values[p] > 0.5f, enabled ? U.values[p] : 0.0f); };
+    // the sticks with a dead zone (the Controls setting, at least 20%): ImGui scrolls with the right stick and moves
+    // with the left one, so a resting stick's small offset scrolled the settings by itself
+    float val[kPadCount];
+    std::copy(std::begin(U.values), std::end(U.values), val);
+    const float dz = std::max(0.2f, std::clamp(current().deadzone, 0.0f, 0.9f));
+    for (int base : {(int)kPadLSUp, (int)kPadRSUp}) {  // up, down, left, right
+        float x = val[base + 3] - val[base + 2], y = val[base] - val[base + 1];
+        const float len = std::sqrt(x * x + y * y);
+        const float scale = len <= dz ? 0.0f : std::min(1.0f, (len - dz) / (1.0f - dz)) / len;
+        x *= scale, y *= scale;
+        val[base] = std::max(y, 0.0f), val[base + 1] = std::max(-y, 0.0f);
+        val[base + 2] = std::max(-x, 0.0f), val[base + 3] = std::max(x, 0.0f);
+    }
+    auto key = [&](ImGuiKey k, int p) { io.AddKeyAnalogEvent(k, enabled && val[p] > 0.5f, enabled ? val[p] : 0.0f); };
     key(ImGuiKey_GamepadFaceDown, kPadA);
     key(ImGuiKey_GamepadFaceRight, kPadB);
     key(ImGuiKey_GamepadFaceLeft, kPadX);

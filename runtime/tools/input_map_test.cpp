@@ -64,6 +64,7 @@ static void test_defaults() {
     v[kPadLT] = 0.8f;
     CHECK(controller_state(m, v).buttons == input::kZL);
     v[kPadLT] = 0; v[kPadLSLeft] = 0.6f; v[kPadRSUp] = 0.3f;
+    m.deadzone = 0;  // the sticks as they are (test_deadzone covers the dead zone)
     s = controller_state(m, v);
     CHECK(std::fabs(s.lx + 0.6f) < 1e-6 && std::fabs(s.ry - 0.3f) < 1e-6);
 }
@@ -112,7 +113,7 @@ static void test_json_roundtrip() {
     m.keys[kHome] = {kNoKey, kNoKey};
     m.pad[kHome] = kPadNone;
     m.keys[kZR] = {kVK_ANSI_C, 93};  // unnamed code survives as "Key93"
-    m.deadzone = 0.15f;
+    m.deadzone = 0.25f;
     m.invert_camera_y = true;
     std::string j = to_json(m);
     CHECK(j.find("\"Key93\"") != std::string::npos);
@@ -135,7 +136,12 @@ static void test_json_partial_and_bad() {
     CHECK(r.keys[kB][0] == kVK_ANSI_K && r.keys[kB][1] == kVK_Space);
     CHECK(r.keys[kX] == Mapping::defaults().keys[kX]);
     CHECK(r.pad[kHome] == kPadNone && r.pad[kA] == kPadB);
-    CHECK(r.deadzone == 0 && !r.invert_camera_y);
+    CHECK(r.deadzone == 0.15f && !r.invert_camera_y);  // the default dead zone
+    // files before format 2 always saved 0, the former default: that means the default now; from format 2 a 0 is a choice
+    CHECK(from_json(R"({"options": {"stick_deadzone": 0}})", r, &err) && r.deadzone == 0.15f);
+    CHECK(from_json(R"({"options": {"stick_deadzone": 0.3}})", r, &err) && r.deadzone == 0.3f);
+    CHECK(from_json(R"({"options": {"format": 2, "stick_deadzone": 0}})", r, &err) && r.deadzone == 0);
+    { Mapping z; z.deadzone = 0; Mapping back; CHECK(from_json(to_json(z), back, &err) && back.deadzone == 0); }
     // unknown names and app shortcuts are dropped with a warning, the rest still loads
     CHECK(from_json(R"({"keyboard": {"A": ["R", "K"], "Jump": ["J"], "B": ["Bogus"]}, "options": {"stick_deadzone": 5}})", r, &err));
     CHECK(!err.empty());

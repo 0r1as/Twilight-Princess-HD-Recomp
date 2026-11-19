@@ -441,7 +441,7 @@ std::string to_json(const Mapping& m) {
         o += a + 1 < kActionCount ? ",\n" : "\n";
     }
     char opt[160];
-    snprintf(opt, sizeof opt, "  },\n  \"options\": {\n    \"stick_deadzone\": %.3g,\n    \"invert_camera_y\": %s\n  }\n}\n",
+    snprintf(opt, sizeof opt, "  },\n  \"options\": {\n    \"format\": 2,\n    \"stick_deadzone\": %.3g,\n    \"invert_camera_y\": %s\n  }\n}\n",
              m.deadzone, m.invert_camera_y ? "true" : "false");
     return o + opt;
 }
@@ -486,7 +486,11 @@ bool from_json(const std::string& text, Mapping& out, std::string* error) {
         }
     }
     if (const Json* op = root.get("options"); op && op->type == Json::Obj) {
-        if (const Json* d = op->get("stick_deadzone"); d && d->type == Json::Num)
+        // Files before format 2 always wrote 0, the former default (no dead zone: a resting stick drifted the aim
+        // and scrolled the settings): that 0 means "the default". From format 2 on a 0 is a choice and kept.
+        const Json* format = op->get("format");
+        const bool legacy = !format || format->type != Json::Num || format->n < 2;
+        if (const Json* d = op->get("stick_deadzone"); d && d->type == Json::Num && !(legacy && d->n == 0))
             m.deadzone = std::clamp((float)d->n, 0.0f, 0.9f);
         if (const Json* i = op->get("invert_camera_y"); i && i->type == Json::Bool) m.invert_camera_y = i->b;
     }

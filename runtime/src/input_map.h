@@ -54,7 +54,7 @@ const char* reserved_key(int code);
 struct Mapping {
     std::array<std::array<int, kKeysPerAction>, kActionCount> keys;  // kNoKey = empty slot
     std::array<int, kActionCount> pad;                                // kPadNone = unbound
-    float deadzone = 0.0f;          // radial dead zone for controller sticks, 0..0.9
+    float deadzone = 0.15f;         // radial dead zone for controller sticks, 0..0.9 (a resting stick is never exactly 0)
     bool invert_camera_y = false;   // right stick Y, keyboard and controller
     static Mapping defaults();
     bool operator==(const Mapping&) const = default;
