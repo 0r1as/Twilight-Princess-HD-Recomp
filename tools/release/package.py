@@ -369,8 +369,8 @@ def main():
         copy(os.path.join(ROOT, rel), os.path.join(pkg, rel))
     # Steam pictures for setup.py's Add to Steam (Windows, Linux): checked by guard.py against steam-pictures.json
     if not a.platform.startswith("macos"):
-        for name in sorted(os.listdir(os.path.join(ROOT, "assets", "steam"))):
-            copy(os.path.join(ROOT, "assets", "steam", name), os.path.join(pkg, "steam", name))
+        for pic in sorted(os.listdir(os.path.join(ROOT, "assets", "steam"))):
+            copy(os.path.join(ROOT, "assets", "steam", pic), os.path.join(pkg, "steam", pic))
     for hp in sorted(os.listdir(os.path.join(ROOT, "tools", "recomp"))):
         if re.match(r"hooks.*\.txt$", hp):
             copy(os.path.join(ROOT, "tools", "recomp", hp), os.path.join(pkg, "tools", "recomp", hp))
