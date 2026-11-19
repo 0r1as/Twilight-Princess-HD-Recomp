@@ -1,13 +1,15 @@
 # Twilight Princess HD: Recompiled
 
 A static recompilation of The Legend of Zelda: Twilight Princess HD (Wii U, USA disc, Rev 2) into a
-native macOS app for Apple Silicon, and (built from source) a native Linux x86-64 program. The game's
-PowerPC code (`code/Zelda.rpx`) is translated to C ahead of time, the Cafe OS libraries it imports are
-reimplemented natively, and its GX2 graphics are drawn with Metal (macOS) or Vulkan (Linux). There is
-no emulator at run time.
+native macOS app for Apple Silicon and native Linux and Windows x86-64 programs. The game's PowerPC code
+(`code/Zelda.rpx`) is translated to C ahead of time, the Cafe OS libraries it imports are reimplemented
+natively, and its GX2 graphics are drawn with Metal (macOS) or Vulkan (Linux, Windows). There is no
+emulator at run time.
 
-It is a fork of [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp) (Wind Waker HD),
-whose recompiler, Cafe OS layer, Metal renderer, setup and settings overlay it reuses. It is an
+It adds Linux and Windows support to Asad's macOS port,
+[twilight-princess-hd-recomp](https://github.com/AsadSi/twilight-princess-hd-recomp), itself a fork of
+[ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp) (Wind Waker HD), whose recompiler,
+Cafe OS layer, renderers, setup and settings overlay it reuses. It is an
 unofficial fan project, not affiliated with or endorsed by Nintendo. It is a work in progress; see the
 issues for what works and what is open.
 
@@ -399,6 +401,8 @@ the shader cache in `~/Library/Caches/tphd` (both in `data/user` in a packaged f
 
 ## Credits
 
+- [twilight-princess-hd-recomp](https://github.com/AsadSi/twilight-princess-hd-recomp) by Asad: the macOS
+  port of Twilight Princess HD this project builds on; the Linux and Windows support was added to it.
 - [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp) and its contributors: the
   recompiler, the Cafe OS layer, the GX2-on-Metal renderer, the setup and the settings overlay this
   port is built on.
