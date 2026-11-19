@@ -192,6 +192,32 @@ class GameVersion(unittest.TestCase):
             self.make(d)
             setup.check_game_version(d)
 
+    def write_meta(self, d, tid):
+        os.makedirs(os.path.join(d, "meta"), exist_ok=True)
+        with open(os.path.join(d, "meta", "meta.xml"), "w") as f:
+            f.write('<menu><title_id type="hexBinary" length="8">%s</title_id></menu>' % tid)
+
+    def test_rewritten_metadata_with_the_right_code(self):
+        # some archive tools rewrite meta.xml/app.xml (title 0005001010060000, version 0): the code decides
+        with tempfile.TemporaryDirectory() as d:
+            self.make(d, app_tid="0005001010060000", app_ver="0000")
+            self.write_meta(d, "0005001010060000")
+            setup.check_folder_title(d)
+            setup.check_game_version(d)
+
+    def test_other_title_with_other_code(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.make(d, rpx=b"another game's code", app_tid="0005001010060000", app_ver="0000")
+            self.write_meta(d, "0005001010060000")
+            with self.assertRaisesRegex(setup.SetupError, "0005001010060000"):
+                setup.check_folder_title(d)
+
+    def test_supported_title_in_metadata(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.make(d, rpx=b"whatever")
+            self.write_meta(d, "000500001019E500")
+            setup.check_folder_title(d)  # the title is the game's: check_game_version decides on the code
+
     def test_update_merged_in(self):
         with tempfile.TemporaryDirectory() as d:
             self.make(d, rpx=b"other code", app_ver="0060")

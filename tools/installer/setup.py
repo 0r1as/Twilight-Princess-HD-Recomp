@@ -761,6 +761,23 @@ def game_folder_title(path):
         return None
 
 
+def check_folder_title(path):
+    """Raises SetupError if a game folder is another title (meta/meta.xml), unless its code/Zelda.rpx is exactly
+    the one the port is built for: some tools that make Cemu archives rewrite the metadata (title
+    0005001010060000, version 0) as well as leaving the archive's title id out, and the code's SHA-256 decides
+    (check_game_version checks it in any case)."""
+    tid = game_folder_title(path)
+    if not tid or tid == SUPPORTED_TITLE:
+        return
+    try:
+        if file_sha256(os.path.join(path, "code", "Zelda.rpx")) == SUPPORTED_RPX_SHA256:
+            LOG.write("%s: meta.xml names title %s, but code/Zelda.rpx is the supported one" % (path, tid))
+            return
+    except OSError:
+        pass
+    check_title(tid)
+
+
 def code_title_version(path):
     """(title id, title version) from code/app.xml (the code's own metadata), else from meta/meta.xml;
     None where it cannot be read."""
@@ -1534,17 +1551,13 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
         begin("folder")
         if not valid_game_folder(source[1]):
             raise SetupError("%s is not an extracted game folder (needs code/Zelda.rpx, content/, meta/meta.xml)" % source[1])
-        tid = game_folder_title(source[1])
-        if tid:
-            check_title(tid)
+        check_folder_title(source[1])
         check_game_version(source[1])
         say("  OK: %s (USA, version %d)" % (source[1], SUPPORTED_VERSION))
     elif kind == "installed":
         if not valid_game_folder(ctx.game_dir):
             raise SetupError("no installed game files in %s; run setup with your disc image" % ctx.game_dir)
-        tid = game_folder_title(ctx.game_dir)
-        if tid:
-            check_title(tid)
+        check_folder_title(ctx.game_dir)
         check_game_version(ctx.game_dir)
 
     begin("compiler")
@@ -1877,12 +1890,10 @@ def gui_main(args):
             folder = p if valid_game_folder(p) else (os.path.dirname(p) if valid_game_folder(os.path.dirname(p)) else None)
             if not folder:
                 return fail(req, "invalid", "This folder does not contain an extracted game (code, content and meta).")
-            tid = game_folder_title(folder)
-            if tid and tid != SUPPORTED_TITLE:
-                try:
-                    check_title(tid)
-                except SetupError as e:
-                    return fail(req, "wrong_title", str(e))
+            try:
+                check_folder_title(folder)
+            except SetupError as e:
+                return fail(req, "wrong_title", str(e))
             try:
                 check_game_version(folder)
             except SetupError as e:
