@@ -4,6 +4,7 @@
 // The GamePad screen modes are the AppKit host's (gfx/display_modes.cpp): the GamePad window is shown
 // in window mode and hidden in the others, which draw the GamePad picture into the TV window.
 #ifdef TPHD_SDL_HOST
+#include "platform/gaming_mode.h"
 #include "aspect.h"
 #include "backend.h"
 #include "gfx/display_modes.h"
@@ -209,9 +210,20 @@ void load_saved_options() {
     if (saved("sharpness", {"TPHD_SHARPNESS"})) look::set_sharpness((int)num("sharpness"));
     // GamePad screen (display_modes.h); the start-up test overrides after the saved choices
     using namespace gfx;
+    // SteamOS Gaming Mode / gamescope: full screen and the GamePad picture in the TV window unless chosen before
+    const char* gaming_why = gaming_mode::reason();
+    // (looked up before anything indexes v: v["key"] would add the key and make it look chosen)
+    const auto saved_fs = v.find("tvFullScreen");
+    const bool fs_chosen = saved_fs != v.end(), fs_saved = fs_chosen && saved_fs->second == "1";
+    const gaming_mode::Defaults gaming =
+        gaming_mode::defaults(gaming_why != nullptr, fs_saved, fs_chosen, v.count("drcMode") > 0);
+    if (gaming_why) LOG("[display] gamescope session (%s): full screen%s unless chosen otherwise", gaming_why,
+                        gaming.pip ? ", GamePad picture in the TV window" : "");
     if (v.count("drcMode")) {
         const int m = find_name(kModeNames, kDrcModeCount, v["drcMode"].c_str(), g_mode);
         if (drc_mode_offered(m)) g_mode = m;
+    } else if (gaming.pip && gfx::drc_mode_offered(kDrcPip)) {
+        g_mode = kDrcPip;
     }
     if (v.count("pipCorner")) g_corner = find_name(kCornerNames, 4, v["pipCorner"].c_str(), g_corner);
     if (v.count("pipSize")) g_pip_size = std::clamp((float)num("pipSize"), 0.1f, 0.5f);
@@ -225,7 +237,7 @@ void load_saved_options() {
     // TV window: full screen as it was left (tv_fullscreen_changed); test runs with hidden windows
     // only log it
     SDL_Window* tv = gfxvk::R.tv.window;
-    if (tv && display_start_fullscreen(v["tvFullScreen"] == "1", SDL_GetWindowFlags(tv) & SDL_WINDOW_HIDDEN))
+    if (tv && display_start_fullscreen(gaming.fullscreen, SDL_GetWindowFlags(tv) & SDL_WINDOW_HIDDEN))
         set_fullscreen(true);
 #endif
 }
