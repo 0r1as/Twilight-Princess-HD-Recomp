@@ -432,7 +432,7 @@ add_test(NAME extract_synthetic COMMAND extract_test $<TARGET_FILE:tphd-extract>
 add_test(NAME extract_wua COMMAND wua_test $<TARGET_FILE:tphd-extract> ${CMAKE_BINARY_DIR}/wua_test_work)
 if(NOT ANDROID)
   # crash logs name the module of a host crash address (main.cpp, crash_addr.cpp)
-  add_test(NAME crash_log_module COMMAND ${CMAKE_COMMAND} -DTPHD=$<TARGET_FILE:tphd>
+  add_test(NAME crash_log_module COMMAND ${CMAKE_COMMAND} -DTPHD=$<TARGET_FILE:tphd> -DTARGET_WINDOWS=${WIN32}
            -DWORK=${CMAKE_BINARY_DIR}/crash_log_test_work -P ${CMAKE_SOURCE_DIR}/runtime/tools/crash_log_test.cmake)
 endif()
 if(TPHD_SDL_HOST)

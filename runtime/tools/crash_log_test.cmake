@@ -1,7 +1,12 @@
 # CTest crash_log_module: the crash log names the module that holds a host crash address.
 # Runs the game executable with TPHD_TEST_HOST_CRASH=1 (main.cpp: strlen of a bad pointer, right
 # after the crash handler is installed; no game files needed) and checks captures/crash-*.log.
-# cmake -DTPHD=<tphd executable> -DWORK=<empty work folder> -P crash_log_test.cmake
+# cmake -DTPHD=<tphd executable> -DWORK=<empty work folder> [-DTARGET_WINDOWS=1] -P crash_log_test.cmake
+# TARGET_WINDOWS: the executable is a Windows one (this script's own WIN32 is the machine running it, which
+# differs when a Windows build is tested from Linux under Wine)
+if(NOT DEFINED TARGET_WINDOWS)
+  set(TARGET_WINDOWS ${WIN32})
+endif()
 file(REMOVE_RECURSE "${WORK}")
 file(MAKE_DIRECTORY "${WORK}")
 execute_process(COMMAND "${CMAKE_COMMAND}" -E env TPHD_TEST_HOST_CRASH=1 TPHD_NO_AUDIO=1 "${TPHD}"
@@ -24,7 +29,7 @@ function(expect regex what)
   set(match1 "${CMAKE_MATCH_1}" PARENT_SCOPE)
 endfunction()
 # the faulting instruction: in the C library, not in the game executable
-if(WIN32)
+if(TARGET_WINDOWS)
   expect("CRASH: Windows exception C0000005 at [0-9A-F]+ in ([^ \n]+)\\+0x[0-9A-F]+ \\(base [0-9A-F]+\\)" "the module of the crash address")
   set(module "${match1}")
   expect("access violation: read of address 0+10\n" "the access type and address")
@@ -42,7 +47,7 @@ expect("\n  module: [^\n]+" "the module's path")
 expect("host backtrace:\n  #0 +[0-9A-Fa-fx]+ in " "an annotated host backtrace")
 string(REPLACE "." "\\." exe_re "${exe}")
 expect("\n  #[0-9]+ +[0-9A-Fa-fx]+ in ${exe_re}\\+0x" "a backtrace frame in ${exe}")
-if(WIN32)
+if(TARGET_WINDOWS)
   string(REPLACE "." "\\." module_re "${module}")
   expect("host backtrace:\n  #0 +[0-9A-F]+ in ${module_re}\\+0x" "the faulting frame first in the backtrace")
 endif()
