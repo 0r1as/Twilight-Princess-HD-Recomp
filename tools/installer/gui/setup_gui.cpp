@@ -1125,7 +1125,7 @@ static void steam_dialogs() {
     if (A.steam_ask) ImGui::OpenPopup("Add to Steam?"), A.steam_ask = false;
     if (A.steam_close_ask) ImGui::OpenPopup("Steam is running"), A.steam_close_ask = false;
     if (ImGui::BeginPopupModal("Add to Steam?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::TextUnformatted("Add Twilight Princess HD to Steam as a non-Steam game?");
+        ImGui::TextUnformatted("Add The Legend of Zelda: Twilight Princess HD to Steam as a non-Steam game?");
         muted("It gets its cover, background, logo and icon in your Steam library.");
         if (button("Add to Steam", ImVec2(180, 0), true)) {
             A.queue.push_back({"steam_add", ""});

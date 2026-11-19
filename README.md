@@ -153,7 +153,7 @@ settings are kept in `~/.local/share/tphd` and `~/.config/tphd`, or, after `--ap
 `.home` folder next to the AppImage. Without FUSE, start it with `--appimage-extract-and-run`.
 
 **Add to Steam (Linux and Windows):** after the first install the setup asks whether to add the game to Steam
-as a non-Steam game, with a cover, wide cover, background, logo and icon (the pictures in `assets/steam`, which
+as a non-Steam game ("The Legend of Zelda: Twilight Princess HD"), with a cover, wide cover, background, logo and icon (the pictures in `assets/steam`, which
 releases carry in `steam/`). The **Add to Steam** button in the setup does it later; `setup.py --add-to-steam`
 does it from a terminal. Steam rewrites its shortcuts when it quits, so it has to be closed: the setup offers to
 close it and starts it again afterwards. The entry starts the AppImage (or the built game on Windows); an entry

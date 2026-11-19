@@ -407,6 +407,17 @@ class Steam(unittest.TestCase):
         self.assertEqual(len(m["shortcuts"]), 2)
         self.assertEqual((e["AppName"], e["icon"]), ("The Legend of Zelda Twilight Princess HD", "/d/icon2.png"))
 
+    def test_old_default_name_renamed(self):
+        # an entry with the name an earlier setup gave it gets the current name and keeps its id (its pictures)
+        m = {"shortcuts": {"0": {"AppName": "Twilight Princess HD", "Exe": '"/g/tp.AppImage"', "appid": -7}}}
+        appid, added = steam.add_shortcut(m, setup.STEAM_NAME, "/g/tp.AppImage", "/g", "", "", setup.STEAM_OLD_NAMES)
+        self.assertFalse(added)
+        self.assertEqual((m["shortcuts"]["0"]["AppName"], appid), ("The Legend of Zelda: Twilight Princess HD", (-7) & 0xFFFFFFFF))
+        # a name chosen in Steam stays
+        m["shortcuts"]["0"]["AppName"] = "TP"
+        steam.add_shortcut(m, setup.STEAM_NAME, "/g/tp.AppImage", "/g", "", "", setup.STEAM_OLD_NAMES)
+        self.assertEqual(m["shortcuts"]["0"]["AppName"], "TP")
+
     def test_entry_without_appid(self):
         # an entry an older Steam wrote has no appid field: its id comes from its Exe and name
         m = {"shortcuts": {"0": {"AppName": "Mine", "Exe": '"/g/tp.AppImage"'}}}

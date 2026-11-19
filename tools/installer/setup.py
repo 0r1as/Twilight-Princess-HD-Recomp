@@ -63,6 +63,8 @@ IS_WIN = sys.platform.startswith("win")
 IS_LINUX = not IS_MAC and not IS_WIN
 EXE_SUFFIX = ".exe" if IS_WIN else ""
 APP_NAME = "Twilight Princess HD"
+STEAM_NAME = "The Legend of Zelda: Twilight Princess HD"  # the game's name in Steam (Add to Steam)
+STEAM_OLD_NAMES = ("Twilight Princess HD",)  # names earlier setups gave their Steam entry: renamed to STEAM_NAME
 TITLE_IDS = {
     "000500001019e500": "USA",
 }
@@ -1330,7 +1332,8 @@ def add_to_steam(state, data_dir, close_steam=False):
             raise SetupError(str(e))
         closed = True
     try:
-        done = steam.add(APP_NAME, exe, start_dir, options, pics, data_dir, log=LOG.write, root=roots[0])
+        done = steam.add(STEAM_NAME, exe, start_dir, options, pics, data_dir, log=LOG.write, root=roots[0],
+                         old_names=STEAM_OLD_NAMES)
     except (steam.SteamError, OSError) as e:
         raise SetupError("could not add the game to Steam: %s" % e)
     finally:

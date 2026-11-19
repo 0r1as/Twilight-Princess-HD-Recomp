@@ -253,9 +253,10 @@ def find_shortcut(shortcuts, exe):
     return None
 
 
-def add_shortcut(root_map, name, exe, start_dir, launch_options, icon):
-    """Adds the game to a parsed shortcuts.vdf, or updates the entry that already starts the same program (its name,
-    a name you gave it in Steam, is kept). Returns (appid unsigned, added)."""
+def add_shortcut(root_map, name, exe, start_dir, launch_options, icon, old_names=()):
+    """Adds the game to a parsed shortcuts.vdf, or updates the entry that already starts the same program. That
+    entry's name is kept (a name you gave it in Steam) unless it is one of old_names, names the setup itself gave
+    earlier, which become name; its app id stays, so its pictures stay attached. Returns (appid unsigned, added)."""
     sc = root_map.setdefault("shortcuts", {})
     key = find_shortcut(sc, exe)
     if key is not None:
@@ -264,6 +265,8 @@ def add_shortcut(root_map, name, exe, start_dir, launch_options, icon):
         appid = e.get("appid")
         appid = (appid & 0xFFFFFFFF) if isinstance(appid, int) else shortcut_appid(exe_field, e.get("AppName", name))
         e["appid"] = signed(appid)
+        if e.get("AppName") in old_names:
+            e["AppName"] = name
         e["StartDir"] = quoted(start_dir)
         e["icon"] = icon
         if launch_options and not e.get("LaunchOptions"):
@@ -300,7 +303,7 @@ def copy_pictures(pictures_dir, grid_dir, appid):
     return n
 
 
-def add(name, exe, start_dir, launch_options, pictures_dir, icon_dir, log=lambda s: None, root=None):
+def add(name, exe, start_dir, launch_options, pictures_dir, icon_dir, log=lambda s: None, root=None, old_names=()):
     """Adds (or updates) the game for the Steam account that logged in last. Steam must not be running.
     icon_dir: a folder that outlives this setup (the data folder) for the shortcut's icon.
     Returns a list of (account, appid, added)."""
@@ -332,7 +335,7 @@ def add(name, exe, start_dir, launch_options, pictures_dir, icon_dir, log=lambda
             if not os.path.exists(backup):  # the state before setup first changed it
                 shutil.copyfile(path, backup)
         root_map = parse_vdf(data)
-        appid, added = add_shortcut(root_map, name, exe, start_dir, launch_options, icon)
+        appid, added = add_shortcut(root_map, name, exe, start_dir, launch_options, icon, old_names)
         tmp = path + ".tmp"
         with open(tmp, "wb") as f:
             f.write(write_vdf(root_map))
