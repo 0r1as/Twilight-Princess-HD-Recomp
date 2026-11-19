@@ -9,10 +9,14 @@ namespace host {
 inline void sleep_until(std::chrono::steady_clock::time_point deadline) {
 #if defined(_WIN32) && defined(TPHD_SDL_HOST)
     // SDL's Windows backend uses high-resolution waitable timers. Keep the
-    // guest's steady-clock deadline instead of rounding it to milliseconds.
-    const auto remaining = std::chrono::duration_cast<std::chrono::nanoseconds>(
-        deadline - std::chrono::steady_clock::now()).count();
-    if (remaining > 0) SDL_DelayNS(static_cast<uint64_t>(remaining));
+    // guest's steady-clock deadline instead of rounding it to milliseconds. A timer can fire slightly before
+    // the deadline as the steady clock sees it (seen under Wine): sleep the rest again, never wake early.
+    for (;;) {
+        const auto remaining = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            deadline - std::chrono::steady_clock::now()).count();
+        if (remaining <= 0) break;
+        SDL_DelayNS(static_cast<uint64_t>(remaining));
+    }
 #else
     std::this_thread::sleep_until(deadline);
 #endif
