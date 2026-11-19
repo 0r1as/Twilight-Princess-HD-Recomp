@@ -72,6 +72,14 @@ void recolour_gtx(std::vector<uint8_t>& d, size_t at, size_t end, const Look& l)
         p = data + size;
     }
 }
+// zlib takes a narrow path, which on Windows is the ANSI code page: a user folder with other letters would fail
+gzFile gz_open(const std::filesystem::path& p, const char* mode) {
+#ifdef _WIN32
+    return gzopen_w(p.c_str(), mode);
+#else
+    return gzopen(p.c_str(), mode);
+#endif
+}
 }  // namespace
 
 std::string pack(const std::filesystem::path& game, const std::filesystem::path& dir, int look) {
@@ -79,7 +87,7 @@ std::string pack(const std::filesystem::path& game, const std::filesystem::path&
     const auto out = dir / ("Kmdl-" + std::to_string(look) + ".pack.gz");
     std::error_code ec;
     if (std::filesystem::exists(out, ec)) return out.string();
-    gzFile in = gzopen((game / "content/res/Object/Kmdl.pack.gz").c_str(), "rb");
+    gzFile in = gz_open(game / "content/res/Object/Kmdl.pack.gz", "rb");
     if (!in) return {};
     std::vector<uint8_t> d;
     for (uint8_t buf[1 << 16];;) {
@@ -97,11 +105,12 @@ std::string pack(const std::filesystem::path& game, const std::filesystem::path&
             recolour_gtx(d, at, at + size, l);
     }
     std::filesystem::create_directories(dir, ec);
-    const auto tmp = out.string() + ".tmp";
-    gzFile o = gzopen(tmp.c_str(), "wb1");
+    auto tmp = out;
+    tmp += ".tmp";
+    gzFile o = gz_open(tmp, "wb1");
     const bool ok = o && gzwrite(o, d.data(), (unsigned)d.size()) == (int)d.size();
     if (o) gzclose(o);
-    if (!ok || (std::filesystem::rename(tmp, out, ec), ec)) return fprintf(stderr, "[tunic] could not write %s\n", out.c_str()), std::string();
+    if (!ok || (std::filesystem::rename(tmp, out, ec), ec)) return fprintf(stderr, "[tunic] could not write %s\n", out.string().c_str()), std::string();
     return out.string();
 }
 }  // namespace mods::tunic

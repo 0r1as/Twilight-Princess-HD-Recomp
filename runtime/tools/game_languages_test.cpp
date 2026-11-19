@@ -7,6 +7,9 @@
 #include "game_languages.h"
 namespace hostui { bool get(const char*, std::string&) { return false; } }
 void log_msg(const char*, ...) {}
+#ifdef _WIN32
+static int setenv(const char* name, const char* value, int) { return _putenv_s(name, value); }
+#endif
 int main() {
     using namespace game_lang;
     assert(variants().size() == 9);
