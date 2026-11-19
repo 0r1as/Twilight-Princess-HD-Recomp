@@ -339,6 +339,10 @@ def add(name, exe, start_dir, launch_options, pictures_dir, icon_dir, log=lambda
         tmp = path + ".tmp"
         with open(tmp, "wb") as f:
             f.write(write_vdf(root_map))
+        if os.path.isfile(path):
+            # the file keeps its permissions: NonSteamLaunchers' scanner sets the executable bit on it and replaces a
+            # shortcuts.vdf without it by an empty one (every non-Steam game gone)
+            shutil.copymode(path, tmp)
         os.replace(tmp, path)
         pics = copy_pictures(pictures_dir, os.path.join(cfg, "grid"), appid)
         log("Steam account %s: %s %s (app id %d), %d pictures" % (acc, "added" if added else "updated", name, appid, pics))

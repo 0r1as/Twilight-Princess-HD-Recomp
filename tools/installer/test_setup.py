@@ -461,6 +461,19 @@ class Steam(unittest.TestCase):
             self.assertEqual(os.path.dirname(icon), data)
             self.assertTrue(os.path.isfile(icon))
 
+    @unittest.skipIf(setup.IS_WIN, "POSIX permissions")
+    def test_permissions_kept(self):
+        # NonSteamLaunchers empties a shortcuts.vdf that is not executable: the rewritten file keeps the mode
+        with tempfile.TemporaryDirectory() as t:
+            root, pics = self.fake_steam(t)
+            path = os.path.join(root, "userdata", "123", "config", "shortcuts.vdf")
+            with open(path, "wb") as f:
+                f.write(steam.write_vdf({"shortcuts": {}}))
+            os.chmod(path, 0o755)
+            with mock.patch.object(steam, "running", return_value=False):
+                steam.add("Twilight Princess HD", "/g/tp", "/g", "", pics, t, root=root)
+            self.assertEqual(os.stat(path).st_mode & 0o777, 0o755)
+
     def test_running_steam_is_not_touched(self):
         with tempfile.TemporaryDirectory() as t:
             root, pics = self.fake_steam(t)
