@@ -71,7 +71,7 @@ A message shows a button inline with a BMG escape: 0x1A, length 5, group 0, type
 HD-only icons (ZL, ...) are group 7. X and Y in messages are drawn with the `tt_zelda_button_{x,y}_text` textures,
 which the texture swap above already exchanges. A and B can't be swapped as textures, so with the Xbox style the
 runtime serves the message archives (`res/Msg*/bmgres*.arc`, every language) with those two escapes exchanged
-(`button_prompts::message_archives`, called by the mod manager before content replacements start). Each archive
+(`mods/prompt_messages.cpp`, switched on in main.cpp, called by the mod manager before content replacements start). Each archive
 is decompressed (Yaz0), only the A/B escapes inside BMG DAT1 sections change (the text is walked escape by escape;
 UTF-16 BMGs, which TP HD doesn't ship, are skipped), and the copy is written back as literal-only Yaz0 into the
 mod cache (`ModManager/Cache/xbox-prompts/`), once. A content mod that replaces a message archive wins. The style

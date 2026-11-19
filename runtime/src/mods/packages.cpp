@@ -1,4 +1,4 @@
-#include "button_prompts.h"
+#include "prompt_messages.h"
 #include "packages.h"
 #include "mod_archive.h"
 #include "content.h"
@@ -231,9 +231,9 @@ void initialize(){
             if(const auto& t=profile().get("builtin").get("tunic");t.get("on").type==Value::Bool&&t.get("on").boolean){
                 const auto& look=t.get("colour");auto pack=tunic::pack(content::installed_game(),root/"Cache",look.type==Value::Number?(int)look.number:0);
                 if(!pack.empty())files.emplace("res/object/kmdl.pack.gz",pack);}
-            // Xbox button prompts: message text with the A and B icons exchanged (button_prompts.h), unless a content
+            // Xbox button prompts: message text with the A and B icons exchanged (prompt_messages.h), unless a content
             // mod replaces a message archive itself
-            if(button_prompts::active()==button_prompts::kXbox)button_prompts::message_archives(content::installed_game(),root/"Cache",files);
+            if(prompt_messages::enabled())prompt_messages::message_archives(content::installed_game(),root/"Cache",files);
             content::activate(std::move(files),root/"Cache");
         } catch(const std::exception& e) {last_problem=e.what();}
         dirty=true;

@@ -32,6 +32,8 @@
 #include "crashrec.h"
 #include "input.h"
 #include "mods/packages.h"
+#include "mods/prompt_messages.h"
+#include "button_prompts.h"
 #include "runtime.h"
 #ifdef __ANDROID__
 #include <SDL3/SDL.h>
@@ -330,6 +332,8 @@ int main(int argc, char** argv) {
 #endif
     mods::cemu::set_vulkan(render::requested()==render::Api::Vulkan);
     mods::content::set_game_root(config::game_dir);  // loose imported files find their game path
+    // Xbox prompt style: the message text's A and B icons too (mods/prompt_messages.h), set up with the mods
+    mods::prompt_messages::enable(button_prompts::active() == button_prompts::kXbox);
     mods::packages::initialize();
     mem::init();
     auto valid_mod_memory = [](uint32_t address, size_t size) {
