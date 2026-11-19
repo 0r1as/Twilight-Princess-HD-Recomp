@@ -204,7 +204,8 @@ Closing the TV window (or Cmd+W, Cmd+Q) quits; closing the GamePad window only h
 Everything can be remapped in the settings overlay's Controls tab or in **Input > Controls...**,
 saved to `~/Library/Application Support/TPHD/controls.json`. Game controllers are read too, with
 buttons mapped by position (the bottom face button is the Wii U's B). Keyboard and controllers act
-as the Wii U GamePad or as a Pro Controller (Input menu or Controls tab). **Button prompts** in the
+as the Wii U GamePad or as a Pro Controller, whichever you choose in the game's start-up prompt (the Pro
+Controller plays on the TV only); until the prompt, they act as the Pro Controller. **Button prompts** in the
 Controls tab can draw the game's A/B/X/Y prompts with the Xbox letter of the button at each place (the
 Wii U's A shows as B, and so on) from the next start; `WWHD_BUTTON_PROMPTS=original|xbox` for one start
 ([notes](docs/button-prompts.md)).
@@ -237,7 +238,7 @@ Display, Save States) has most of the same options.
   texture sharpness, bloom, the HUD, distant fog, a performance overlay.
 - **Display**: full screen, picture scaling (smooth, sharp, integer) and the GamePad screen.
 - **Mods**: mod packages and profiles.
-- **Controls**: GamePad or Pro Controller, remapping on a drawing of the controller or as a list,
+- **Controls**: which controller the game plays with (shown), remapping on a drawing of the controller or as a list,
   stick dead zone, inverted camera up/down, Tap amiibo.
 - **Language / About**: the text language.
 

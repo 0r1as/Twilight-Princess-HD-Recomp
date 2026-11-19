@@ -81,6 +81,7 @@ HLE(proc_ui, ProcUIDrawDoneRelease) {}
 HLE(proc_ui, ProcUIProcessMessages) { ret(c, 0); }  // PROCUI_STATUS_IN_FOREGROUND
 
 // ---- vpad (GamePad): keyboard / host controllers
+namespace padscore { void count_vpad_read(); }  // hle/padscore.cpp
 HLE(vpad, VPADSetButtonProcMode) {}
 HLE(vpad, VPADEnableGyroZeroPlay) {}
 HLE(vpad, VPADSetGyroZeroPlayParam) {}
@@ -109,6 +110,7 @@ HLE(vpad, VPADRead) {
     static uint32_t last_hold = 0;
     const bool repeat = false;  // (frame interpolation repeated samples; TP HD runs at 30 fps)
     input::PadState p = crashrec::read(0);  // live input, recorded/replayed by crash recovery
+    padscore::count_vpad_read();  // which controller the game plays with (hle/pad_choice.h)
     if (input::pro_controller()) {  // GamePad on the table: screen and touch only
         p.buttons = 0;
         p.lx = p.ly = p.rx = p.ry = 0;

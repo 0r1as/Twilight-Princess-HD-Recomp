@@ -1200,17 +1200,13 @@ void gyro_window(bool& open) {
 void tab_controls() {
     bool v;
     input_map::Mapping m = input_map::current();
-    // top: which controller the keyboard and controllers act as (the drawing follows), view switch
+    // top: which controller the keyboard and controllers act as (the drawing follows), view switch. The game's
+    // start-up prompt chooses it (hle/pad_choice.h): shown here, not a setting
     const bool pro = input::pro_controller();
     ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Keyboard and controllers act as");
-    ImGui::SameLine();
-    // the choice is saved (issue #26: every start went back to the GamePad and showed its screen)
-    if (radio("Wii U GamePad", !pro))
-        hostui::post([] { hostui::set_pro_controller(false); hostui::set("proController", "0"); });
-    ImGui::SameLine();
-    if (radio("Wii U Pro Controller", pro))
-        hostui::post([] { hostui::set_pro_controller(true); hostui::set("proController", "1"); });
+    ImGui::Text("Keyboard and controllers act as the Wii U %s", pro ? "Pro Controller" : "GamePad");
+    help("Chosen in the game: its start-up prompt offers the GamePad or the Pro Controller (the game on the TV "
+         "only). Until it asks, they act as the Pro Controller.");
     ImGui::SameLine(ImGui::GetContentRegionAvail().x + ImGui::GetCursorPosX() - ImGui::CalcTextSize("List view").x -
                     ImGui::GetFrameHeight() - ImGui::GetStyle().ItemInnerSpacing.x);
     ImGui::Checkbox("List view", &U.list_view);
@@ -1577,9 +1573,7 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
         prefs_read = true;
         std::string v;
         if (hostui::get("perfOverlay", v)) g_perf = v == "1";
-        // the saved controller choice (WWHD_PRO_CONTROLLER wins); it also hides or shows the GamePad screen
-        if (!getenv("WWHD_PRO_CONTROLLER") && hostui::get("proController", v))
-            hostui::post([pro = v == "1"] { hostui::set_pro_controller(pro); });
+        // GamePad or Pro Controller: the game's start-up prompt chooses (hle/pad_choice.h), not a saved setting
         // the saved rumble choice (WWHD_RUMBLE wins)
         if (!rumble::env_override() && hostui::get("rumble", v)) rumble::set_enabled(v != "0");
         // the saved gyro settings (WWHD_GYRO overrides the source)

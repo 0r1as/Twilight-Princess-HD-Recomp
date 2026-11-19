@@ -1,15 +1,17 @@
-// padscore: Wii Remote / Pro Controller (WPAD, KPAD). Only a Pro Controller on channel 0 exists,
-// and only while the keyboard/host controllers are set to act as one (Input menu). Struct layouts
-// and constants follow Cemu's padscore.
+// padscore: Wii Remote / Pro Controller (WPAD, KPAD). A Pro Controller is always on channel 0; the game's
+// start-up prompt chooses it or the GamePad, and the keyboard and host controllers act as the chosen one
+// (service, pad_choice.h). Struct layouts and constants follow Cemu's padscore.
 //
 // TP HD learns of a controller only through its connect callback (KPADSetConnectCallback, 020086FC for
 // channels 0-3): on status 0 it probes the channel (WPADProbe) and, for a Pro Controller, registers it
 // with its controller manager (02BFB00C), which then reads it with KPADReadEx; any other status
-// unregisters the channel if it was registered. service() reports channel 0's state through it whenever
-// it changes (the mode switched in the Controls tab, a start in Pro Controller mode, a save state loaded).
+// unregisters the channel if it was registered. service() reports channel 0 through it once the game has
+// registered its callback, and again after a save state is loaded.
 #include <atomic>
 
 #include "../crashrec.h"
+#include "../overlay/hostui.h"
+#include "pad_choice.h"
 #include "../runtime.h"
 #include "../input.h"
 #include "../motion/motion.h"
@@ -20,7 +22,10 @@ constexpr int32_t kWpadErrNone = 0, kWpadErrNoController = -1;
 constexpr int32_t kKpadErrNone = 0, kKpadErrNoController = -2;
 constexpr uint8_t kDevURCC = 31, kDevNone = 253, kFormatURCC = 22;
 
-bool connected(uint32_t chan) { return chan == 0 && input::pro_controller(); }
+// A Pro Controller is always on channel 0, as on a Wii U with one switched on: the game's start-up prompt
+// chooses between it and the GamePad, and the keyboard and host controllers act as the chosen one (service).
+bool connected(uint32_t chan) { return chan == 0; }
+std::atomic<uint32_t> g_kpad_reads{0};  // KPADReadEx calls since the last logic step
 
 // VPAD button bits (input::PadState) -> Pro Controller (URCC) bits
 uint32_t pro_buttons(uint32_t v) {
@@ -56,8 +61,20 @@ HLE(padscore, KPADSetConnectCallback) {
 }
 
 namespace padscore {
+std::atomic<uint32_t> g_vpad_reads{0};  // VPADRead calls since the last logic step
+void count_vpad_read() { g_vpad_reads++; }
 // a guest thread, once per logic step (main01's frame loop, interp.cpp)
 void service(Cpu* c) {
+    // the game's controller choice (pad_choice.h): the keyboard and host controllers act as that one, and the
+    // GamePad screen follows (hostui::set_pro_controller); WWHD_PRO_CONTROLLER (set) keeps the Pro Controller
+    static PadChoice choice;
+    static const char* fixed = getenv("WWHD_PRO_CONTROLLER");
+    const PadChoice::Change change = choice.step(g_kpad_reads.exchange(0), g_vpad_reads.exchange(0));
+    if (!fixed && change != PadChoice::kNone && (change == PadChoice::kPro) != input::pro_controller()) {
+        const bool pro = change == PadChoice::kPro;
+        LOG("[pad] the game plays with the %s: the keyboard and controllers act as it", pro ? "Pro Controller" : "GamePad");
+        hostui::post([pro] { hostui::set_pro_controller(pro); });
+    }
     const uint32_t cb = g_connect_cb[0];
     if (!cb) return;
     const int now = connected(0) ? 1 : 0;
@@ -108,6 +125,7 @@ HLE(padscore, KPADReadEx) {
         return;
     }
     static uint32_t last = 0;
+    g_kpad_reads++;
     input::PadState p = crashrec::read(1);  // crash recovery records/replays it
     motion::right_stick(p.rx, p.ry);  // the Pro Controller's stick decides gyro use too (motion.h)
     uint32_t hold = pro_buttons(p.buttons);
