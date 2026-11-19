@@ -64,3 +64,18 @@ the title screen, Ordon Spring and Village, the item ring, field map and Collect
   as they are; none showed up on the screens checked.
 - Button icons inside message text, if the game has any: none seen yet (likely font glyphs, `rodan_b_24_22.bfn`).
 - Screens not visited yet (fishing, letters, minigames, the GamePad screen's own layouts).
+
+## Icons in message text
+
+A message shows a button inline with a BMG escape: 0x1A, length 5, group 0, type 0x000A (A) or 0x000B (B); the
+HD-only icons (ZL, ...) are group 7. X and Y in messages are drawn with the `tt_zelda_button_{x,y}_text` textures,
+which the texture swap above already exchanges. A and B can't be swapped as textures, so with the Xbox style the
+runtime serves the message archives (`res/Msg*/bmgres*.arc`, every language) with those two escapes exchanged
+(`button_prompts::message_archives`, called by the mod manager before content replacements start). Each archive
+is decompressed (Yaz0), only the A/B escapes inside BMG DAT1 sections change (the text is walked escape by escape;
+UTF-16 BMGs, which TP HD doesn't ship, are skipped), and the copy is written back as literal-only Yaz0 into the
+mod cache (`ModManager/Cache/xbox-prompts/`), once. A content mod that replaces a message archive wins. The style
+is fixed for the session, as for the textures: a change in the Controls tab applies at the next start.
+
+Checked: 90 archives, 1926 icons; compared with the originals, every changed byte is an A/B icon code; the game
+reads the copies (Msgus at boot) and plays.
