@@ -128,6 +128,7 @@ static thread_local Cpu* t_cpu = nullptr;
 static uint32_t g_sda_base, g_sda2_base;
 static uint16_t g_next_id = 1;
 
+static void ghs_init();  // the GHS C library's lock handles (below, with __ghs_mtx_init)
 namespace threads {
 Cpu* current() { return t_cpu; }
 uint32_t current_thread() { return t_self ? t_self->guest : 0; }
@@ -654,6 +655,7 @@ static HostThread* create_thread(uint32_t t, uint32_t entry, uint32_t argc, uint
 static void thread_dump_loop(int secs);
 namespace threads {
 void init(const LoadedModule& m) {
+    ::ghs_init();  // the GHS C library's lock handles, at boot (below)
     g_sda_base = m.sda_base;
     g_sda2_base = m.sda2_base;
     // debug: WWHD_THREAD_DUMP=s logs every guest thread's state (running/parked, wait object, lr) every s seconds
@@ -930,15 +932,40 @@ HLE(coreinit, OSUnlockMutex) { mutex_unlock(arg(c, 0)); }
 
 // GHS C library locks
 static uint32_t g_ghs_lock = 0xC0FFEE00;
+// __ghs_mtx_init asks for a handle for each mutex the game's C library creates, at any time (how many depends on
+// what the game did), and __ghs_flock_ptr for a stream's lock. Allocated one by one, they moved every runtime
+// object allocated after them, and a save state needs those at the same addresses (savestate.cpp check_allocs):
+// states saved after other menus or other C library use would not load. Both now come from blocks made at boot
+// (ghs_init, from threads::init), before the game runs. The handles' fill level is the pool's first word, in
+// guest memory, so a loaded state brings its own and new handles never overlap restored ones. The runtime uses
+// a handle only as the identity of a lock; stream locks all share one (__ghs_flock_file).
+static constexpr uint32_t kGhsHandles = 4096;  // 8 bytes each
+static uint32_t g_ghs_pool = 0, g_ghs_flock = 0;
+static std::mutex g_ghs_pool_m;
+static void ghs_init() {
+    g_ghs_pool = mem::runtime_alloc(8 + kGhsHandles * 8, 8);
+    g_ghs_flock = mem::runtime_alloc(8, 8);
+}
+static uint32_t ghs_handle() {
+    std::lock_guard<std::mutex> lk(g_ghs_pool_m);
+    const uint32_t used = ld32(g_ghs_pool);
+    if (used < kGhsHandles) {
+        st32(g_ghs_pool, used + 1);
+        return g_ghs_pool + 8 + used * 8;
+    }
+    static bool warned = false;
+    if (!warned) warned = true, LOG("[threads] GHS mutex handle pool full (%u): further handles move the runtime objects after them", kGhsHandles);
+    return mem::runtime_alloc(8);
+}
 HLE(coreinit, __ghsLock) { mutex_lock(g_ghs_lock); }
 HLE(coreinit, __ghsUnlock) { mutex_unlock(g_ghs_lock); }
-HLE(coreinit, __ghs_mtx_init) { /* arg: void** handle */ st32(arg(c, 0), mem::runtime_alloc(8)); }
+HLE(coreinit, __ghs_mtx_init) { /* arg: void** handle */ st32(arg(c, 0), ghs_handle()); }
 HLE(coreinit, __ghs_mtx_dst) {}
 HLE(coreinit, __ghs_mtx_lock) { mutex_lock(ld32(arg(c, 0))); }
 HLE(coreinit, __ghs_mtx_unlock) { mutex_unlock(ld32(arg(c, 0))); }
 HLE(coreinit, __ghs_flock_file) { mutex_lock(0xC0FFEE10); }
 HLE(coreinit, __ghs_funlock_file) { mutex_unlock(0xC0FFEE10); }
-HLE(coreinit, __ghs_flock_ptr) { ret(c, mem::runtime_alloc(4)); }
+HLE(coreinit, __ghs_flock_ptr) { ret(c, g_ghs_flock); }  // one for every stream (ghs_init)
 HLE(coreinit, __ghs_flock_destroy) {}
 
 // OSEvent. Like Cafe OS, a signal wakes the threads waiting at that moment (a manual-reset event:

@@ -432,8 +432,10 @@ bool check_allocs(Reader r, std::string& why) {
     (void)top;
     uint32_t n = r.u32();
     auto cur = mem::runtime_alloc_log();
-    for (uint32_t i = 0; i < n && r.ok; i++) {
-        mem::AllocRec a = r.pod<mem::AllocRec>();
+    std::vector<mem::AllocRec> saved;
+    for (uint32_t i = 0; i < n && r.ok; i++) saved.push_back(r.pod<mem::AllocRec>());
+    for (uint32_t i = 0; i < saved.size(); i++) {
+        const mem::AllocRec& a = saved[i];
         if (i >= cur.size()) break;  // allocated later in the saved session: beyond our top
         const mem::AllocRec& b = cur[i];
         // (the allocating code address, a.tag, changes with every rebuild: only logged)
@@ -443,6 +445,15 @@ bool check_allocs(Reader r, std::string& why) {
             snprintf(buf, sizeof buf, "runtime objects are laid out differently (#%u: %08X+%X vs %08X+%X)", i, a.addr, a.size, b.addr,
                      b.size);
             why = buf;
+            // which allocations differ: the neighbourhood in both sessions, with the code that allocated each (its
+            // offset in the executable: addr2line -f -C -e <the game> <tag> names the function)
+            LOG("[savestate] runtime objects: %zu saved, %zu now; around #%u (address+size, allocating code):", saved.size(),
+                cur.size(), i);
+            for (uint32_t k = i >= 3 ? i - 3 : 0; k < i + 4; k++)
+                LOG("[savestate]   #%u  saved %08X+%-6X %#llx   now %08X+%-6X %#llx", k,
+                    k < saved.size() ? saved[k].addr : 0, k < saved.size() ? saved[k].size : 0,
+                    k < saved.size() ? (unsigned long long)saved[k].tag : 0ull, k < cur.size() ? cur[k].addr : 0,
+                    k < cur.size() ? cur[k].size : 0, k < cur.size() ? (unsigned long long)cur[k].tag : 0ull);
             return false;
         }
     }
@@ -742,6 +753,19 @@ std::string states_dir() { return state_dir(); }
 
 void service(Cpu* c) {
     crashrec::service();
+    // debug: WWHD_ALLOC_LOG_AT=<TV frame> logs every runtime object in guest memory (address, size, allocating code
+    // as an offset in the executable) once, to compare the layouts of two sessions
+    static const uint64_t alloc_log_at = getenv("WWHD_ALLOC_LOG_AT") ? strtoull(getenv("WWHD_ALLOC_LOG_AT"), nullptr, 10) : 0;
+    if (alloc_log_at && render::frame_count() >= alloc_log_at) {
+        static bool done = false;
+        if (!done) {
+            done = true;
+            auto log = mem::runtime_alloc_log();
+            LOG("[alloclog] %zu runtime objects at frame %llu", log.size(), (unsigned long long)render::frame_count());
+            for (size_t i = 0; i < log.size(); i++)
+                LOG("[alloclog] #%zu %08X+%X %#llx", i, log[i].addr, log[i].size, (unsigned long long)log[i].tag);
+        }
+    }
     // test aids (TV frames): WWHD_STATE_SAVE_AT / WWHD_STATE_LOAD_AT
     static const std::vector<Timed> save_at = parse_timed("WWHD_STATE_SAVE_AT"), load_at = parse_timed("WWHD_STATE_LOAD_AT");
     if (!save_at.empty() || !load_at.empty()) {
