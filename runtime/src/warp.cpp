@@ -1,4 +1,4 @@
-// Warps. Test aid: WWHD_WARP=<frame>:<stage>,<point>,<room>,<layer> sends the game to that place at TV frame <frame>,
+// Warps. Test aid: TPHD_WARP=<frame>:<stage>,<point>,<room>,<layer> sends the game to that place at TV frame <frame>,
 // and more warps can follow, separated by ';' (a later frame each; tools/warplist.py lists the developer map select's places from the disc). It calls the game's own
 // dComIfGp_setNextStage (with its default speed, mode and wipe), as a door or a cutscene does; the play
 // scene then changes stage. Story flags stay as they are, so a place may come up in another state than
@@ -101,7 +101,7 @@ void service(Cpu* c) {
         asked.swap(g_next);
     }
     if (asked) return warp(*asked);
-    static const char* e = getenv("WWHD_WARP");  // the next warp; null when none is left
+    static const char* e = getenv("TPHD_WARP");  // the next warp; null when none is left
     if (!e || !*e) return;
     char* p;
     uint64_t at = strtoull(e, &p, 10);
@@ -111,7 +111,7 @@ void service(Cpu* c) {
     char stage[8] = {};
     int point = 0, room = 0, layer = -1;
     if (*p != ':' || sscanf(p + 1, "%7[^,],%d,%d,%d", stage, &point, &room, &layer) < 1) {
-        LOG("[warp] WWHD_WARP: expected <frame>:<stage>,<point>,<room>,<layer>");
+        LOG("[warp] TPHD_WARP: expected <frame>:<stage>,<point>,<room>,<layer>");
         return;
     }
     warp({stage, point, room, layer});

@@ -1,4 +1,4 @@
-// Warps: WWHD_WARP (a test aid) and the Warp menu mod's places (warp.cpp).
+// Warps: TPHD_WARP (a test aid) and the Warp menu mod's places (warp.cpp).
 #pragma once
 #include <string>
 #include <vector>

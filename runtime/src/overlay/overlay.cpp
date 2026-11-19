@@ -28,7 +28,7 @@
 #include "../crashrec.h"
 #include "../game_languages.h"
 #include "../gfx/renderer.h"
-#ifdef WWHD_HAS_VULKAN
+#ifdef TPHD_HAS_VULKAN
 #include "../gfx/vulkan/settings.h"
 namespace gfxvk { bool buffer_cache_enabled(); }  // gfx/vulkan/buffer_cache.h
 #endif
@@ -62,10 +62,10 @@ std::atomic<bool> g_open{false};
 std::atomic<bool> g_perf{false};
 std::atomic<float> g_density{1.0f};
 std::atomic<bool> g_wait_release{false};  // just closed: the game sees no buttons until all are released
-const bool g_no_host = getenv("WWHD_NO_HOST_INPUT") != nullptr;  // test runs ignore the user's input
-// ... except keys a test posts itself (WWHD_TEST_POST_KEYS, gfx/input.mm; the hidden test window never
+const bool g_no_host = getenv("TPHD_NO_HOST_INPUT") != nullptr;  // test runs ignore the user's input
+// ... except keys a test posts itself (TPHD_TEST_POST_KEYS, gfx/input.mm; the hidden test window never
 // has the user's keyboard)
-const bool g_no_host_keys = g_no_host && !getenv("WWHD_TEST_POST_KEYS");
+const bool g_no_host_keys = g_no_host && !getenv("TPHD_TEST_POST_KEYS");
 bool g_pad_b_used = false;  // B answered a dialog this frame: it does not also close the menu
 
 // input events from the host's main thread, replayed into ImGui on the render thread
@@ -255,7 +255,7 @@ void init_context() {
     io.LogFilename = nullptr;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
     io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
-    io.BackendPlatformName = "wwhd";
+    io.BackendPlatformName = "tphd";
     io.ConfigNavCaptureKeyboard = true;
     setup_style();
     setup_fonts();
@@ -272,7 +272,7 @@ struct TestSwitch {
 };
 TestSwitch parse_test() {
     TestSwitch t;
-    const char* e = getenv("WWHD_TEST_OVERLAY");
+    const char* e = getenv("TPHD_TEST_OVERLAY");
     if (!e || !*e) { t.done = true; return t; }
     std::string s = e;
     if (size_t at = s.find('@'); at != std::string::npos) {
@@ -289,14 +289,14 @@ TestSwitch parse_test() {
 }
 
 // ---------------------------------------------------------------- controller
-// debug: WWHD_TEST_PAD=320-400:B+LeftStickRight:0.8+LeftStickUp:0.4 holds host controller inputs
+// debug: TPHD_TEST_PAD=320-400:B+LeftStickRight:0.8+LeftStickUp:0.4 holds host controller inputs
 // (controls.json names, value 1 unless given) during TV frames 320..400. They reach only the
 // Controls tab's live display (not the menu navigation, capture or the game).
 void test_pad(float* v) {
     struct Hold { uint64_t from, to; int pad; float value; };
     static const std::vector<Hold> holds = [] {
         std::vector<Hold> out;
-        const char* e = getenv("WWHD_TEST_PAD");
+        const char* e = getenv("TPHD_TEST_PAD");
         while (e && *e) {
             unsigned long long a, b;
             int n;
@@ -309,7 +309,7 @@ void test_pad(float* v) {
                 if (size_t c = item.find(':'); c != std::string::npos) { id = item.substr(0, c); value = (float)atof(item.c_str() + c + 1); }
                 int p = input_map::pad_from_id(id);
                 if (p > 0) out.push_back({a, b, p, value});
-                else LOG("[overlay] WWHD_TEST_PAD: unknown controller input %s", id.c_str());
+                else LOG("[overlay] TPHD_TEST_PAD: unknown controller input %s", id.c_str());
                 e += len;
                 if (*e != '+') break;
                 e++;
@@ -607,7 +607,7 @@ void tab_graphics() {
         if (radio(look::bloom_name(f), look::fog() == f)) post_changed([f] { look::set_fog(f); });
     }
     help("The haze over far land, which takes on the sky's color. Reduced halves it.");
-#ifdef WWHD_HAS_VULKAN
+#ifdef TPHD_HAS_VULKAN
     heading("Presentation (Vulkan)");
     {
         const bool vk = render::vulkan(), env = gfxvk::present_mode_from_env();
@@ -625,7 +625,7 @@ void tab_graphics() {
             else help(tips[i]);
         }
         if (!vk) note("Used by the Vulkan renderer only (Metal always presents with vsync).");
-        else if (env) note("WWHD_VK_PRESENT_MODE=%s is set for this start and takes precedence.", getenv("WWHD_VK_PRESENT_MODE"));
+        else if (env) note("TPHD_VK_PRESENT_MODE=%s is set for this start and takes precedence.", getenv("TPHD_VK_PRESENT_MODE"));
         else {
             std::string missing;
             for (int i = 1; i < gfxvk::kPresentModes; i++)
@@ -650,7 +650,7 @@ void tab_graphics() {
         h.host = hostui::name();
         h.fps = interp::mode_name();
         h.scale = hostui::res_scale();
-#ifdef WWHD_HAS_VULKAN
+#ifdef TPHD_HAS_VULKAN
         if (render::vulkan()) {
             h.bufferCache = gfxvk::buffer_cache_enabled();
             h.overrides = reporthdr::vulkan_overrides([](const char* n) -> const char* { return getenv(n); });
@@ -781,9 +781,9 @@ void package_controls() {
     using namespace mods::packages;
     static std::string error;
     static NativeConfirm confirm;
-    // debug: WWHD_TEST_MOD_ENABLE=<package id> ticks that package's checkbox once in test runs (the
+    // debug: TPHD_TEST_MOD_ENABLE=<package id> ticks that package's checkbox once in test runs (the
     // confirmation then shows for unconfirmed native code)
-    static const char* test_enable = g_no_host ? getenv("WWHD_TEST_MOD_ENABLE") : nullptr;
+    static const char* test_enable = g_no_host ? getenv("TPHD_TEST_MOD_ENABLE") : nullptr;
     static char source[1024] = {}, new_profile[65] = {};
     static std::mutex picker_mutex;
     static std::string picked;
@@ -1118,7 +1118,7 @@ void gyro_window(bool& open) {
          "GamePad. The game's own Options > Motion Controls switch still decides whether it uses the motion.");
     for (int i = 0; i < motion::kSourceCount; i++)
         if (radio(motion::source_label(i), g.source == i)) g.source = i;
-    if (motion::env_override()) note("WWHD_GYRO=%s overrides the saved source.", getenv("WWHD_GYRO"));
+    if (motion::env_override()) note("TPHD_GYRO=%s overrides the saved source.", getenv("TPHD_GYRO"));
     if (g.source == motion::kOff && motion::gyro_controllers() > 0) note("A controller with a gyro is connected: choose Controller gyro to use it.");
     if (g.source == motion::kController || g.source == motion::kCemuhook) {
         ImGui::TextUnformatted("Turn left/right by");
@@ -1304,7 +1304,7 @@ void tab_controls() {
         input_map::set_current(m);
     }
     ImGui::SameLine(0, 24);
-    // issue #35: a way to keep the controller motors still (saved; WWHD_RUMBLE=0 starts with it off)
+    // issue #35: a way to keep the controller motors still (saved; TPHD_RUMBLE=0 starts with it off)
     if (check("Rumble", rumble::enabled(), &v, input::has_rumble())) {
         rumble::set_enabled(v);
         hostui::post([v] { hostui::set("rumble", v ? "1" : "0"); });
@@ -1346,7 +1346,7 @@ void choose_language(const game_lang::Variant& v) {
 }
 
 void tab_about() {
-    const char* env = getenv("WWHD_LANGUAGE");
+    const char* env = getenv("TPHD_LANGUAGE");
     const bool env_set = env && *env;
     const game_lang::Variant& now = game_lang::current();
     if (U.language < 0) {
@@ -1367,7 +1367,7 @@ void tab_about() {
     }
     ImGui::EndDisabled();
     if (env_set)
-        note("WWHD_LANGUAGE=%s is set for this start and takes precedence.", env);
+        note("TPHD_LANGUAGE=%s is set for this start and takes precedence.", env);
     else if (U.language != now.language || U.language_region != now.region)
         warn("Restart the game to apply it: the game reads the console language only when it starts.");
     heading("About");
@@ -1574,9 +1574,9 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
         std::string v;
         if (hostui::get("perfOverlay", v)) g_perf = v == "1";
         // GamePad or Pro Controller: the game's start-up prompt chooses (hle/pad_choice.h), not a saved setting
-        // the saved rumble choice (WWHD_RUMBLE wins)
+        // the saved rumble choice (TPHD_RUMBLE wins)
         if (!rumble::env_override() && hostui::get("rumble", v)) rumble::set_enabled(v != "0");
-        // the saved gyro settings (WWHD_GYRO overrides the source)
+        // the saved gyro settings (TPHD_GYRO overrides the source)
         hostui::post([] { load_gyro(); });
     }
     if (!test.done && render::frame_count() + 1 >= test.at) {
@@ -1584,12 +1584,12 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
         if (test.tab >= 0) U.select_tab = U.tab = test.tab;
         if (test.open) set_open(true);
         if (test.perf) g_perf = true;
-        LOG("[overlay] test switch: %s", getenv("WWHD_TEST_OVERLAY"));
+        LOG("[overlay] test switch: %s", getenv("TPHD_TEST_OVERLAY"));
     }
-#ifdef WWHD_HAS_VULKAN
-    // debug: WWHD_TEST_PRESENT_MODE=mailbox@330 picks Graphics > Presentation at TV frame 330, as the
+#ifdef TPHD_HAS_VULKAN
+    // debug: TPHD_TEST_PRESENT_MODE=mailbox@330 picks Graphics > Presentation at TV frame 330, as the
     // radio button does (the swapchains are recreated)
-    static const char* tpm = getenv("WWHD_TEST_PRESENT_MODE");
+    static const char* tpm = getenv("TPHD_TEST_PRESENT_MODE");
     if (tpm) {
         const char* at = strchr(tpm, '@');
         if (render::frame_count() + 1 >= (at ? strtoull(at + 1, nullptr, 10) : 1)) {

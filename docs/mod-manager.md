@@ -92,7 +92,7 @@ switches them off. They take effect on the next logic step, with no restart (`ru
 The cheats change the live save data after each step (what changed, not fixed values), so the game's own rules
 still apply.
 
-The Installed packages section accepts a local folder or `.wwhdmod` ZIP. Choose
+The Installed packages section accepts a local folder or `.tphdmod` ZIP. Choose
 it with the file/folder picker, then press Install package. Installed packages
 start disabled; nothing from a package is loaded until you enable it. Enabling
 resolves required dependencies; missing versions, cycles and declared conflicts
@@ -136,22 +136,22 @@ profile; select it in Active profile. Switch away before deleting a profile.
 Disable all switches off every package.
 
 Storage is `<host config directory>/ModManager`: `Mods/<id>/manifest.json` plus
-package files, and `profiles.json`. `WWHD_MOD_MANAGER_DIR` selects isolated
-storage. `WWHD_NO_HOST_INPUT` skips package storage unless
+package files, and `profiles.json`. `TPHD_MOD_MANAGER_DIR` selects isolated
+storage. `TPHD_NO_HOST_INPUT` skips package storage unless
 an explicit manager directory is supplied for a test. Content mods are copied locally into manager storage; the original game files
 are preserved. Game assets and saves are never committed, uploaded or redistributed.
 
-Test aids (only with `WWHD_NO_HOST_INPUT`): `WWHD_TEST_TRUST_NATIVE_MODS=id[,id…]`
+Test aids (only with `TPHD_NO_HOST_INPUT`): `TPHD_TEST_TRUST_NATIVE_MODS=id[,id…]`
 treats those native packages as confirmed without writing `native_trust`; it
-also needs an explicit `WWHD_MOD_MANAGER_DIR`, so it never applies to a player's
-storage. `WWHD_TEST_MOD_ENABLE=<id>` ticks that package's checkbox once when the
-Mods tab is drawn (with `WWHD_TEST_OVERLAY=open:mods`), which shows the
+also needs an explicit `TPHD_MOD_MANAGER_DIR`, so it never applies to a player's
+storage. `TPHD_TEST_MOD_ENABLE=<id>` ticks that package's checkbox once when the
+Mods tab is drawn (with `TPHD_TEST_OVERLAY=open:mods`), which shows the
 confirmation for an unconfirmed native package.
 
 ## Native mod SDK v1
 
-`runtime/include/wwhd_mod.h` defines a plain C ABI. Export
-`wwhd_mod_init_v1`, validate host size/ABI, and return initialized `WWHDModV1`.
+`runtime/include/tphd_mod.h` defines a plain C ABI. Export
+`tphd_mod_init_v1`, validate host size/ABI, and return initialized `TPHDModV1`.
 Initialization, configuration callbacks, game-update callbacks and unloading run
 on the game thread. The frame callback runs once per original logic step after
 actor execution; interpolated draws do not invoke it. Host/context pointers and
@@ -197,7 +197,7 @@ need a separate import bridge. Online downloads/catalogues are outside v1.
 ## Packaging a mod
 
 A package is a folder, or a ZIP archive of that folder's contents renamed to
-`.wwhdmod`, with `manifest.json` at its root and, for a native mod, the library
+`.tphdmod`, with `manifest.json` at its root and, for a native mod, the library
 named in `binaries`. Packages you publish must not contain game files; content and Cemu packs are
 imported locally by the player (see below). Native packages run
 with the same permissions as the game: install only mods you trust.
@@ -329,7 +329,7 @@ Supported graphics rules are width/height/depth, formats/tileModes filters and
 Guest memory, resource formats and the original game files remain unchanged.
 Matching rules replace the native resolution scale rather than multiplying it.
 Pure dimension packs work in Metal and Vulkan. Packs containing GLSL require a
-build configured with `-DWWHD_RENDERER=BOTH` or `VULKAN`, and Vulkan selected at
+build configured with `-DTPHD_RENDERER=BOTH` or `VULKAN`, and Vulkan selected at
 runtime: choose it in Graphics, restart, then enable the pack. Metal shader
 translation is not implemented. If Vulkan falls back to Metal, the pack's shader
 and dimension changes are suppressed and the UI reports the backend requirement.

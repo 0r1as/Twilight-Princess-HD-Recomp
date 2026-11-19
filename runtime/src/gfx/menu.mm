@@ -15,7 +15,7 @@
 #include "../aspect.h"
 #include "../look.h"
 #include "renderer.h"
-#ifdef WWHD_HAS_VULKAN
+#ifdef TPHD_HAS_VULKAN
 #include "vulkan/settings.h"  // Presentation (present mode), kept with the other graphics options
 #endif
 #include "runtime.h"
@@ -52,11 +52,10 @@ static NSWindow* g_tv;
 static double g_fps = 0;  // frames presented per second, measured over the last half second
 static NSString* const kTitle = @"Twilight Princess HD: Recompiled";
 
-// Graphics options are kept across launches (macOS user defaults, domain "tphd": the process is named
-// wwhd, like Wind Waker HD's, so not its own domain); an option's WWHD_* environment variable overrides
-// the saved value for that run and is not saved. Scripted test runs (WWHD_NO_HOST_INPUT) neither read nor
+// Graphics options are kept across launches (macOS user defaults, domain "tphd"); an option's TPHD_* environment variable overrides
+// the saved value for that run and is not saved. Scripted test runs (TPHD_NO_HOST_INPUT) neither read nor
 // write them.
-static const bool g_prefs = getenv("WWHD_NO_HOST_INPUT") == nullptr;
+static const bool g_prefs = getenv("TPHD_NO_HOST_INPUT") == nullptr;
 static bool g_prefs_loaded = false;  // nothing is saved before the saved values were applied
 static bool env_set(std::initializer_list<const char*> env) {
     for (const char* e : env)
@@ -68,7 +67,12 @@ static NSString* portable_prefs_path() {
     return host::portable() ? @((host::portable_user_dir() + "/graphics.plist").c_str()) : nil;
 }
 static NSMutableDictionary* g_portable_prefs;
-static NSUserDefaults* const g_defaults = [[NSUserDefaults alloc] initWithSuiteName:@"tphd"];
+// The installed app (bundle io.github.asadsi.tphd) reads the "tphd" domain as a suite. An executable started
+// outside a bundle (a build folder) is named tphd, so "tphd" is its own standard domain, which macOS refuses
+// as a suite name: there the standard defaults are that same domain.
+static NSUserDefaults* const g_defaults = NSBundle.mainBundle.bundleIdentifier
+                                              ? [[NSUserDefaults alloc] initWithSuiteName:@"tphd"]
+                                              : NSUserDefaults.standardUserDefaults;
 static id pref(NSString* key) {
     if (NSString* p = portable_prefs_path()) {
         if (!g_portable_prefs)
@@ -89,36 +93,36 @@ static void load_prefs() {
     g_prefs_loaded = true;
     if (!g_prefs) return;
     auto saved = [&](NSString* key, std::initializer_list<const char*> env) { return !env_set(env) && pref(key) != nil; };
-    if (saved(@"resScale", {"WWHD_RES_SCALE"})) set_res([pref(@"resScale") floatValue]);
-    if (saved(@"aniso", {"WWHD_ANISO"})) render::set_aniso([pref(@"aniso") boolValue]);
-    if (saved(@"fxaa", {"WWHD_FXAA"})) render::set_fxaa([pref(@"fxaa") boolValue]);
+    if (saved(@"resScale", {"TPHD_RES_SCALE"})) set_res([pref(@"resScale") floatValue]);
+    if (saved(@"aniso", {"TPHD_ANISO"})) render::set_aniso([pref(@"aniso") boolValue]);
+    if (saved(@"fxaa", {"TPHD_FXAA"})) render::set_fxaa([pref(@"fxaa") boolValue]);
     // frame rate: fps60 is the mode (0 30 fps, 1 frame interpolation; the key predates 120/240 fps),
     // interpFps the interpolation's rate
-    if (saved(@"interpFps", {"WWHD_INTERP_FPS"})) interp::set_fps([pref(@"interpFps") intValue]);
-    if (saved(@"aspect", {"WWHD_ASPECT"})) aspect::set_mode([pref(@"aspect") intValue]);
-    if (saved(@"bloom", {"WWHD_BLOOM"})) look::set_bloom([pref(@"bloom") intValue]);
-    if (saved(@"hud", {"WWHD_HUD"})) look::set_hud([pref(@"hud") boolValue]);
-    if (saved(@"fog", {"WWHD_FOG"})) look::set_fog([pref(@"fog") intValue]);
-    if (saved(@"sharpness", {"WWHD_SHARPNESS"})) look::set_sharpness([pref(@"sharpness") intValue]);
-    if (saved(@"fps60", {"WWHD_INTERP", "WWHD_INTERP_FPS"})) interp::set_mode([pref(@"fps60") intValue]);
-#ifdef WWHD_HAS_VULKAN
-    if (saved(@"vkPresentMode", {"WWHD_VK_PRESENT_MODE"})) gfxvk::set_present_mode([pref(@"vkPresentMode") intValue]);
+    if (saved(@"interpFps", {"TPHD_INTERP_FPS"})) interp::set_fps([pref(@"interpFps") intValue]);
+    if (saved(@"aspect", {"TPHD_ASPECT"})) aspect::set_mode([pref(@"aspect") intValue]);
+    if (saved(@"bloom", {"TPHD_BLOOM"})) look::set_bloom([pref(@"bloom") intValue]);
+    if (saved(@"hud", {"TPHD_HUD"})) look::set_hud([pref(@"hud") boolValue]);
+    if (saved(@"fog", {"TPHD_FOG"})) look::set_fog([pref(@"fog") intValue]);
+    if (saved(@"sharpness", {"TPHD_SHARPNESS"})) look::set_sharpness([pref(@"sharpness") intValue]);
+    if (saved(@"fps60", {"TPHD_INTERP", "TPHD_INTERP_FPS"})) interp::set_mode([pref(@"fps60") intValue]);
+#ifdef TPHD_HAS_VULKAN
+    if (saved(@"vkPresentMode", {"TPHD_VK_PRESENT_MODE"})) gfxvk::set_present_mode([pref(@"vkPresentMode") intValue]);
 #endif
 }
 static void save_prefs() {
     if (!g_prefs || !g_prefs_loaded) return;
-    if (!env_set({"WWHD_RES_SCALE"})) set_pref(@"resScale", @(current_res_scale()));
-    if (!env_set({"WWHD_ANISO"})) set_pref(@"aniso", @(render::aniso()));
-    if (!env_set({"WWHD_FXAA"})) set_pref(@"fxaa", @(render::fxaa()));
-    if (!env_set({"WWHD_INTERP", "WWHD_INTERP_FPS"})) set_pref(@"fps60", @(interp::mode()));
-    if (!env_set({"WWHD_INTERP_FPS"})) set_pref(@"interpFps", @(interp::fps()));
-    if (!env_set({"WWHD_ASPECT"})) set_pref(@"aspect", @(aspect::mode()));
-    if (!env_set({"WWHD_BLOOM"})) set_pref(@"bloom", @(look::bloom()));
-    if (!env_set({"WWHD_HUD"})) set_pref(@"hud", @(look::hud()));
-    if (!env_set({"WWHD_FOG"})) set_pref(@"fog", @(look::fog()));
-    if (!env_set({"WWHD_SHARPNESS"})) set_pref(@"sharpness", @(look::sharpness()));
-#ifdef WWHD_HAS_VULKAN
-    if (!env_set({"WWHD_VK_PRESENT_MODE"})) set_pref(@"vkPresentMode", @(gfxvk::present_mode()));
+    if (!env_set({"TPHD_RES_SCALE"})) set_pref(@"resScale", @(current_res_scale()));
+    if (!env_set({"TPHD_ANISO"})) set_pref(@"aniso", @(render::aniso()));
+    if (!env_set({"TPHD_FXAA"})) set_pref(@"fxaa", @(render::fxaa()));
+    if (!env_set({"TPHD_INTERP", "TPHD_INTERP_FPS"})) set_pref(@"fps60", @(interp::mode()));
+    if (!env_set({"TPHD_INTERP_FPS"})) set_pref(@"interpFps", @(interp::fps()));
+    if (!env_set({"TPHD_ASPECT"})) set_pref(@"aspect", @(aspect::mode()));
+    if (!env_set({"TPHD_BLOOM"})) set_pref(@"bloom", @(look::bloom()));
+    if (!env_set({"TPHD_HUD"})) set_pref(@"hud", @(look::hud()));
+    if (!env_set({"TPHD_FOG"})) set_pref(@"fog", @(look::fog()));
+    if (!env_set({"TPHD_SHARPNESS"})) set_pref(@"sharpness", @(look::sharpness()));
+#ifdef TPHD_HAS_VULKAN
+    if (!env_set({"TPHD_VK_PRESENT_MODE"})) set_pref(@"vkPresentMode", @(gfxvk::present_mode()));
 #endif
     if (NSString* p = portable_prefs_path()) [g_portable_prefs writeToFile:p atomically:YES];
 }
@@ -142,7 +146,7 @@ static void update_title() {
     if (gx2::uncapped()) t = [t stringByAppendingString:@" \u00b7 UNCAPPED (debug)"];
     std::string msg = ss::last_message();  // save state confirmations
     if (!msg.empty()) t = [NSString stringWithFormat:@"%@ \u2014 %@ \u2014 %s", kTitle, rnd, msg.c_str()];
-    if (getenv("WWHD_LOG_TITLE") && ![t isEqualToString:g_tv.title]) {  // tests: the window title as it changes
+    if (getenv("TPHD_LOG_TITLE") && ![t isEqualToString:g_tv.title]) {  // tests: the window title as it changes
         NSString* noFps = [t stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"%.0f fps", g_fps] withString:@"N fps"];
         static NSString* last;
         if (![noFps isEqualToString:last]) LOG("[display] title: %s", noFps.UTF8String);
@@ -157,7 +161,7 @@ static void choose_renderer(render::Api a) {
     render::set_preferred(a);
     update_title();
     if (a == render::active()) return;  // back to the renderer in use: nothing to restart
-    if (getenv("WWHD_NO_HOST_INPUT")) return;  // test runs: no dialogs
+    if (getenv("TPHD_NO_HOST_INPUT")) return;  // test runs: no dialogs
     NSAlert* alert = [NSAlert new];
     alert.messageText = [NSString stringWithFormat:@"The game will use %s after a restart.", render::api_name(a)];
     alert.informativeText = @"Restart now? Progress since your last save (in-game save or save state) is lost.";

@@ -21,7 +21,7 @@ This came with the Wind Waker HD fork. For Twilight Princess HD (2026-10-09):
 
 Settings overlay (F1) → **Controls** → **Gyro…**:
 
-- **Source** (above). `WWHD_GYRO=off|controller|cemuhook|mouse` overrides it at start.
+- **Source** (above). `TPHD_GYRO=off|controller|cemuhook|mouse` overrides it at start.
 - **Turn left/right by** (controller and Cemuhook sources), the usual gyro aiming conventions (as in
   JoyShockMapper and Steam Input):
   - **Player space** (default): turning the controller left or right about the real vertical,
@@ -85,11 +85,11 @@ Whether TP HD reads the matrix the same way is part of the check above.
   window losing the focus does this too, SDL pauses controller events then), "turning its sensors off
   and on again" (the watchdog), "motion from controller N" (another controller took over).
   The Gyro window shows the same.
-- **More detail:** `WWHD_GYRO_LOG=1` logs, twice a second and for every source, the raw gyro and
+- **More detail:** `TPHD_GYRO_LOG=1` logs, twice a second and for every source, the raw gyro and
   accelerometer samples, the sample rate, the bias, the gravity direction and the aim, plus what the
   virtual GamePad gets; on the macOS app also the raw GameController values.
 
-Debug: `WWHD_TEST_GYRO=from-to:yaw:pitch,...` turns the virtual GamePad by yaw / pitch degrees per
+Debug: `TPHD_TEST_GYRO=from-to:yaw:pitch,...` turns the virtual GamePad by yaw / pitch degrees per
 second during game-time seconds (any source, also off; no sensitivity; game time, so it does not
 depend on how fast the machine runs).
 
@@ -103,7 +103,7 @@ upright holds), not yet with physical controllers or with TP HD. Once the game's
    nothing. **Yaw** and **Roll** as described above. With the controller on a desk the aim must stay still
    after a second (bias calibration).
 2. Same on the **macOS app** (GameController.framework, a different axis mapping:
-   `WWHD_GYRO_LOG=1` logs the raw values).
+   `TPHD_GYRO_LOG=1` logs the raw values).
 3. **Steam Deck** (SDL) and **Joy-Con** pairs.
 4. **Cemuhook**: DS4Windows or BetterJoy with the server on, source Cemuhook; the Gyro window shows
    "receiving motion". Stop the server: the game must keep running smoothly. Android needs network

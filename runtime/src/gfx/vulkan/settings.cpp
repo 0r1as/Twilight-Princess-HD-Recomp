@@ -9,14 +9,14 @@ namespace gfxvk {
 namespace {
 int normalize(int v) { return (v % 3 + 3) % 3; }
 struct Settings {
-    std::atomic<bool> aniso{std::getenv("WWHD_ANISO") && std::atoi(std::getenv("WWHD_ANISO")) != 0};
-    std::atomic<bool> fxaa{std::getenv("WWHD_FXAA") && std::atoi(std::getenv("WWHD_FXAA")) != 0};
-    std::atomic<int> filter{[] { const char* e = std::getenv("WWHD_SCALE_FILTER"); return e && !std::strcmp(e,"sharp") ? 1 : e && !std::strcmp(e,"integer") ? 2 : 0; }()};
+    std::atomic<bool> aniso{std::getenv("TPHD_ANISO") && std::atoi(std::getenv("TPHD_ANISO")) != 0};
+    std::atomic<bool> fxaa{std::getenv("TPHD_FXAA") && std::atoi(std::getenv("TPHD_FXAA")) != 0};
+    std::atomic<int> filter{[] { const char* e = std::getenv("TPHD_SCALE_FILTER"); return e && !std::strcmp(e,"sharp") ? 1 : e && !std::strcmp(e,"integer") ? 2 : 0; }()};
     std::atomic<bool> available[static_cast<int>(GraphicsFeature::Count)]{};
 };
 Settings& settings() { static Settings s; return s; }
 int env_present_mode() {
-    const char* e = std::getenv("WWHD_VK_PRESENT_MODE");
+    const char* e = std::getenv("TPHD_VK_PRESENT_MODE");
     if (!e || !*e) return -1;
     return !std::strcmp(e, "mailbox") ? kPresentMailbox : !std::strcmp(e, "immediate") ? kPresentImmediate : kPresentFifo;
 }

@@ -11,7 +11,7 @@ CMake compiled the placeholder code and linked the executable, and turns that in
 there:
 
   - gamecode: the compiler flags of build/gen/code_*.c (same flags, same compiler family);
-  - link: the exact link line of the wwhd executable, with the runtime's object files and static
+  - link: the exact link line of the tphd executable, with the runtime's object files and static
     libraries copied into sdk/ and libgamecode.a replaced by the player's own.
 
 Output: OUT_DIR/TwilightPrincessHD-VERSION-NAME/ and OUT_DIR/TwilightPrincessHD-VERSION-NAME.zip.
@@ -138,15 +138,15 @@ def split_command(cmd):
 
 
 def link_command(build):
-    lines = subprocess.check_output(["ninja", "-C", build, "-t", "commands", "wwhd"], text=True).splitlines()
+    lines = subprocess.check_output(["ninja", "-C", build, "-t", "commands", "tphd"], text=True).splitlines()
     cmd = lines[-1].strip()
     # CMake wraps link rules (": && CMD && :" on POSIX hosts, 'cmd.exe /C "cd . && CMD && ..."' on
-    # Windows) and may chain post-build steps (copying SDL3.dll): keep the part that writes wwhd
+    # Windows) and may chain post-build steps (copying SDL3.dll): keep the part that writes tphd
     m = re.match(r'^(?:\S*[\\/])?cmd(?:\.exe)? /C "(.*)"$', cmd, re.I)
     if m:
         cmd = m.group(1)
     parts = [p.strip() for p in cmd.split(" && ")]
-    links = [p for p in parts if re.search(r"(^|\s)-o\s+\"?wwhd(\.exe)?\"?(\s|$)", p)]
+    links = [p for p in parts if re.search(r"(^|\s)-o\s+\"?tphd(\.exe)?\"?(\s|$)", p)]
     if len(links) != 1:
         sys.exit("cannot find the link step in: " + cmd)
     cmd = links[0]
@@ -229,10 +229,10 @@ def build_link_recipe(build, pkg, linkonly):
                 continue
             # the game's Windows resources (VERSIONINFO + manifest) from our own generated .rc
             # (cmake/WindowsResources.cmake; windres writes a COFF object named .rc.res)
-            own_res = re.fullmatch(r"CMakeFiles/wwhd\.dir/generated/wwhd\.rc\.res",
+            own_res = re.fullmatch(r"CMakeFiles/tphd\.dir/generated/tphd\.rc\.res",
                                    os.path.relpath(path, build).replace("\\", "/"))
             if a.lower().endswith(OBJ_EXT) or own_res:
-                # flatten CMakeFiles/wwhd.dir/runtime/src/x.cpp.o -> obj/runtime_src_x.cpp.o
+                # flatten CMakeFiles/tphd.dir/runtime/src/x.cpp.o -> obj/runtime_src_x.cpp.o
                 rel = os.path.relpath(path, build).replace("\\", "/")
                 rel = re.sub(r"^CMakeFiles/[^/]+\.dir/", "", rel)
                 flat = re.sub(r"[^A-Za-z0-9_.+-]", "_", rel)
@@ -325,7 +325,7 @@ def main():
     ap.add_argument("--license", action="append", default=[], help="NAME=PATH of a dependency's license")
     ap.add_argument("--runtime-file", action="append", default=[], help="file to install next to the executable")
     ap.add_argument("--linkonly-lib", action="append", default=[], help="system library to ship for linking only")
-    ap.add_argument("--setup-gui", help="the built graphical installer (wwhd-setup) to include")
+    ap.add_argument("--setup-gui", help="the built graphical installer (tphd-setup) to include")
     ap.add_argument("--windows-python", help="windows: the pinned embeddable Python zip (toolchains.json python.windows), "
                     "shipped unmodified as tools/python")
     ap.add_argument("--no-zip", action="store_true")
@@ -355,7 +355,7 @@ def main():
         "version": a.version,
         "platform": a.platform,
         "toolchain": a.toolchain,
-        "exe": "wwhd" + exe_suffix,
+        "exe": "tphd" + exe_suffix,
         "built_with": os.path.basename(driver),
         "gamecode_cflags": cflags,
         "link": link,
@@ -371,14 +371,14 @@ def main():
             copy(os.path.join(ROOT, "tools", "recomp", hp), os.path.join(pkg, "tools", "recomp", hp))
     # the extractor must be self-contained: zstd from the pinned source, linked statically (cmake/Zstd.cmake)
     try:
-        with open(os.path.join(build, "wwhd-zstd.txt")) as f:
+        with open(os.path.join(build, "tphd-zstd.txt")) as f:
             kind, _, zstd_license = f.read().strip().partition(" ")
     except OSError:
         kind, zstd_license = "", ""
     if kind != "bundled":
-        sys.exit("wwhd-extract in %s uses a system zstd; configure release builds with -DWWHD_BUNDLED_ZSTD=ON "
-                 "(on by default with -DWWHD_BUNDLED_DEPS=ON)" % build)
-    copy(os.path.join(build, "wwhd-extract" + exe_suffix), os.path.join(pkg, "tools", "bin", "wwhd-extract" + exe_suffix))
+        sys.exit("tphd-extract in %s uses a system zstd; configure release builds with -DTPHD_BUNDLED_ZSTD=ON "
+                 "(on by default with -DTPHD_BUNDLED_DEPS=ON)" % build)
+    copy(os.path.join(build, "tphd-extract" + exe_suffix), os.path.join(pkg, "tools", "bin", "tphd-extract" + exe_suffix))
 
     # the setup in a terminal (the fallback for the program above), in tools/
     inst = os.path.join(ROOT, "tools", "installer")
@@ -410,7 +410,7 @@ def main():
     licdir = os.path.join(pkg, "third-party-licenses")
     os.makedirs(licdir)
     entries = dict(VENDORED_LICENSES)
-    # zstd: compiled into tools/bin/wwhd-extract on every platform (pinned source, cmake/Zstd.cmake)
+    # zstd: compiled into tools/bin/tphd-extract on every platform (pinned source, cmake/Zstd.cmake)
     entries["Zstandard (BSD-3-Clause)"] = zstd_license
     if a.platform.startswith("windows"):
         entries["Python (PSF-2.0)"] = os.path.join(pkg, "tools", "python", "LICENSE.txt")

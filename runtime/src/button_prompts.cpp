@@ -10,7 +10,7 @@
 // null pointer reading the other's data (they differ), and no HD prompt seen uses them. Checked on the title
 // screen, Ordon Spring and Village, the item ring, map and Collection (docs/button-prompts.md).
 //
-// Research aid: WWHD_TEX_TRACE=1 logs each distinct HD path built (archive -> HD path).
+// Research aid: TPHD_TEX_TRACE=1 logs each distinct HD path built (archive -> HD path).
 #include "button_prompts.h"
 
 #include <atomic>
@@ -35,7 +35,7 @@ const char* const kPairs[][2] = {
 };
 int parse(const std::string& v) { return v == "xbox" || v == "1" ? kXbox : kOriginal; }
 int resolve() {
-    if (const char* e = getenv("WWHD_BUTTON_PROMPTS")) return parse(e);
+    if (const char* e = getenv("TPHD_BUTTON_PROMPTS")) return parse(e);
     std::string v;
     return hostui::get("buttonPrompts", v) ? parse(v) : kOriginal;
 }
@@ -78,7 +78,7 @@ void set_saved(int style) {
 extern "C" void f_02B889F4_orig(Cpu* c);
 extern "C" void hook_02B889F4(Cpu* c) {  // (char* out, const char* archive_path, entry names...): the HD path
     using namespace button_prompts;
-    static const bool trace = getenv("WWHD_TEX_TRACE") != nullptr;
+    static const bool trace = getenv("TPHD_TEX_TRACE") != nullptr;
     const uint32_t out = c->r[3];
     const std::string src = trace ? guest_str(c->r[4]) : std::string();
     f_02B889F4_orig(c);

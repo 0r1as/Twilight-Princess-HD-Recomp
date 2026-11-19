@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """List the places of the developer map select, from the disc's res/Menu/Menu1.dat (its code is gone from TP
-HD, the data isn't). Each line is a WWHD_WARP target: stage,point,room,layer.
+HD, the data isn't). Each line is a TPHD_WARP target: stage,point,room,layer.
 
 usage: warplist.py [game dir] [filter]   (filter: a substring of the stage name or the description)
 """

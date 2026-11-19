@@ -1,5 +1,5 @@
 // Tests the text variants (game_languages.cpp): the region a language gets, region codes, a language the game
-// lacks, and WWHD_LANGUAGE / WWHD_LANGUAGE_REGION.
+// lacks, and TPHD_LANGUAGE / TPHD_LANGUAGE_REGION.
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -18,8 +18,8 @@ int main() {
     assert(choose(0, "us").region == kJapan);  // Japanese text only with the Japanese region
     assert(choose(7, "").language == 1 && choose(7, "").region == kUsa);  // Korean: English
     assert(region_from_code("EUR") == kEurope && region_from_code("x") == 0 && std::string(region_code(kJapan)) == "jp");
-    setenv("WWHD_LANGUAGE", "5", 1);
-    setenv("WWHD_LANGUAGE_REGION", "eu", 1);
+    setenv("TPHD_LANGUAGE", "5", 1);
+    setenv("TPHD_LANGUAGE_REGION", "eu", 1);
     assert(current().language == 5 && current().region == kEurope);
     puts("game_languages_test: variants, regions, fallback, environment passed");
 }

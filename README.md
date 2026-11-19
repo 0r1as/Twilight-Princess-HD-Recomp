@@ -62,20 +62,20 @@ shasum -a 256 game/code/Zelda.rpx      # must match the SHA-256 above
 python3 tools/recomp/recomp.py game/code/Zelda.rpx build/gen
 
 # 3. build (Metal only)
-cmake -S . -B build/cmake -DWWHD_RENDERER=METAL
-make -C build/cmake -j$(sysctl -n hw.ncpu) wwhd
+cmake -S . -B build/cmake -DTPHD_RENDERER=METAL
+make -C build/cmake -j$(sysctl -n hw.ncpu) tphd
 
 # 4. play, from the repository root
-./build/cmake/wwhd
+./build/cmake/tphd
 ```
 
-`wwhd` reads the game from `game/` and writes saves to `save/` in the current directory
+`tphd` reads the game from `game/` and writes saves to `save/` in the current directory
 (`--game DIR` and `--save DIR` change them). It stops at start if `game/code/Zelda.rpx` does not match
-the translated code. The executable and the `WWHD_*` environment variables keep the upstream names.
+the translated code. (The Wind Waker HD port it is forked from calls these `wwhd` and `WWHD_*`.)
 
 To check that the runtime builds without the game, use placeholder code:
 `python3 tools/recomp/stubgen.py build/gen-stub`, then
-`cmake -S . -B build/cmake-stub -DWWHD_RENDERER=METAL -DGEN_DIR=$PWD/build/gen-stub && make -C build/cmake-stub wwhd`.
+`cmake -S . -B build/cmake-stub -DTPHD_RENDERER=METAL -DGEN_DIR=$PWD/build/gen-stub && make -C build/cmake-stub tphd`.
 The result cannot run the game.
 
 ## Build on Linux
@@ -88,25 +88,25 @@ SDL3 host: there is no menu bar, so everything is in the settings overlay (F1).
 # other distributions have their own)
 sudo pacman -S --needed clang cmake python vulkan-headers vulkan-icd-loader sdl3 glslang lz4 zlib zstd
 
-# 1. a placeholder build first: it makes the game extractor (wwhd-extract) and runs the tests
+# 1. a placeholder build first: it makes the game extractor (tphd-extract) and runs the tests
 python3 tools/recomp/stubgen.py build/gen-stub
 cmake -S . -B build/linux -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DGEN_DIR=$PWD/build/gen-stub
 cmake --build build/linux -j$(nproc)
 ctest --test-dir build/linux
 
-# 2. the game into game/: a Cemu archive (.wua, no keys) with wwhd-extract, or a disc image with
+# 2. the game into game/: a Cemu archive (.wua, no keys) with tphd-extract, or a disc image with
 #    tools/wudextract.py as in "Build from source" (needs pycryptodome and your keys)
-./build/linux/wwhd-extract --title 000500001019e500 info GAME.wua
-./build/linux/wwhd-extract --title 000500001019e500 --progress extract GAME.wua game
+./build/linux/tphd-extract --title 000500001019e500 info GAME.wua
+./build/linux/tphd-extract --title 000500001019e500 --progress extract GAME.wua game
 sha256sum game/code/Zelda.rpx      # must match the SHA-256 above
 
 # 3. translate and build the game (Vulkan is the default off macOS)
 python3 tools/recomp/recomp.py game/code/Zelda.rpx build/gen
 cmake -S . -B build/linux-game -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
-cmake --build build/linux-game -j$(nproc) --target wwhd
+cmake --build build/linux-game -j$(nproc) --target tphd
 
 # 4. play, from the repository root
-./build/linux-game/wwhd
+./build/linux-game/tphd
 ```
 
 Settings, controls, save states and the Vulkan shader cache are kept in `~/.config/tphd` (`$XDG_CONFIG_HOME`).
@@ -157,11 +157,11 @@ built against placeholder code, so it contains no game code:
 
 ```sh
 python3 tools/recomp/stubgen.py build/gen-stub
-cmake -S . -B build/rel -G Ninja -DCMAKE_BUILD_TYPE=Release -DWWHD_RENDERER=METAL \
-  -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DGEN_DIR=$PWD/build/gen-stub -DWWHD_SETUP_GUI=ON -DWWHD_BUNDLED_ZSTD=ON
+cmake -S . -B build/rel -G Ninja -DCMAKE_BUILD_TYPE=Release -DTPHD_RENDERER=METAL \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DGEN_DIR=$PWD/build/gen-stub -DTPHD_SETUP_GUI=ON -DTPHD_BUNDLED_ZSTD=ON
 cmake --build build/rel
 python3 tools/release/package.py --build build/rel --platform macos-arm64 --version 0.1.0 \
-  --out build/dist --toolchain xcode-clt --setup-gui build/rel/wwhd-setup
+  --out build/dist --toolchain xcode-clt --setup-gui build/rel/tphd-setup
 python3 tools/release/guard.py build/dist/*.zip    # checks for game code, game files and keys
 ```
 
@@ -208,7 +208,7 @@ buttons mapped by position (the bottom face button is the Wii U's B). Keyboard a
 as the Wii U GamePad or as a Pro Controller, whichever you choose in the game's start-up prompt (the Pro
 Controller plays on the TV only); until the prompt, they act as the Pro Controller. **Button prompts** in the
 Controls tab can draw the game's A/B/X/Y prompts with the Xbox letter of the button at each place (the
-Wii U's A shows as B, and so on) from the next start; `WWHD_BUTTON_PROMPTS=original|xbox` for one start
+Wii U's A shows as B, and so on) from the next start; `TPHD_BUTTON_PROMPTS=original|xbox` for one start
 ([notes](docs/button-prompts.md)).
 
 App shortcuts in the game window:
@@ -248,14 +248,14 @@ Display, Save States) has most of the same options.
 **Frame rate.** 30 fps as on the Wii U, or 60, 120 or 240 fps by frame interpolation: the game logic
 keeps its 30 steps a second, and 1, 3 or 7 frames in between are drawn with the camera, every 3D
 model, the particles and the 2D (the HUD's and menus' movements and fades) blended. The rate is capped to the
-display's refresh rate, which the Graphics tab shows. `WWHD_INTERP=1` and
-`WWHD_INTERP_FPS=60|120|240` set it for one start.
+display's refresh rate, which the Graphics tab shows. `TPHD_INTERP=1` and
+`TPHD_INTERP_FPS=60|120|240` set it for one start.
 
 **Aspect ratio.** 16:9 (original), match the window, 16:10, 21:9 or 32:9, through the game's own wide
 screen layout: wider screens show more to the sides, text keeps its shape and the HUD keeps its 16:9
 distance from the edges. Menus, messages and the title are drawn at 16:9 in the middle, with black beside
 full-screen menus such as Collection, the map and the save prompt. The GamePad picture is unchanged.
-`WWHD_ASPECT=window|16:10|21:9|32:9`.
+`TPHD_ASPECT=window|16:10|21:9|32:9`.
 
 **Internal resolution.** 1x (1920x1080, as on the Wii U), 1.33x (2560x1440), 1.5x (2880x1620) or
 2x (3840x2160), widened to the aspect ratio (21:9 at 1x is 2520x1080). Measured at 60 fps on a MacBook Air
@@ -263,14 +263,14 @@ full-screen menus such as Collection, the map and the save prompt. The GamePad p
 
 **Bloom and HUD.** Bloom (the glow around bright areas, strongest in the Twilight) at its original
 strength, reduced to half, or off; and the HUD (hearts, rupees, buttons, map icon) shown or hidden, for
-screenshots. Menus and messages always show. `WWHD_BLOOM=reduced|off`, `WWHD_HUD=0`.
+screenshots. Menus and messages always show. `TPHD_BLOOM=reduced|off`, `TPHD_HUD=0`.
 
 **Distant fog.** The haze that turns far land toward the sky's color, at its original strength, halved,
-or off (as Cemu's TP HD "Distant Fog" pack, which changes the same value). `WWHD_FOG=reduced|off`.
+or off (as Cemu's TP HD "Distant Fog" pack, which changes the same value). `TPHD_FOG=reduced|off`.
 
 **Texture sharpness.** Original, Sharper or Sharpest: textures seen at a distance or at an angle use
 finer detail (a level-of-detail bias of -0.5 or -1, the play settings of Cemu's TP HD pack). Sharpest
-can shimmer in motion. Metal and Vulkan (not MoltenVK). `WWHD_SHARPNESS=sharper|sharpest`.
+can shimmer in motion. Metal and Vulkan (not MoltenVK). `TPHD_SHARPNESS=sharper|sharpest`.
 
 Graphics choices are remembered between starts (`defaults delete tphd` resets them); an environment
 variable overrides the saved value for that start only.
@@ -278,8 +278,8 @@ variable overrides the saved value for that start only.
 **Languages.** The disc carries the text in nine variants: English (North America), English
 (Europe), French (North America), French (Europe), Spanish (Latin America), Spanish (Europe),
 German, Italian and Japanese. Choose one in Language / About; it applies at the next start. For one
-start: `WWHD_LANGUAGE=<code>` (0 Japanese, 1 English, 2 French, 3 German, 4 Italian, 5 Spanish) with
-`WWHD_LANGUAGE_REGION=us|eu|jp`.
+start: `TPHD_LANGUAGE=<code>` (0 Japanese, 1 English, 2 French, 3 German, 4 Italian, 5 Spanish) with
+`TPHD_LANGUAGE_REGION=us|eu|jp`.
 
 **Saves.** Saving in the game (Collection, then Save Game) writes one file per Quest Log to
 `save/user/`, `ZTP00.dat` for the first, with `COMMON.dat` next to them (`data/save/user/` in a packaged
@@ -291,7 +291,7 @@ too.
 
 **Save states.** Five slots (keys above, the Saves tab or the Save States menu). A state is the
 whole running game, about 190 MB, restored exactly. It contains game code and data: never share it.
-States live in `~/Library/Application Support/TPHD/states` (`WWHD_STATE_DIR` changes it) and are
+States live in `~/Library/Application Support/TPHD/states` (`TPHD_STATE_DIR` changes it) and are
 tied to the game file they were made with.
 
 **amiibo.** Virtual figures, no reader or figure files: Input > Tap amiibo (or Tap amiibo... in the
@@ -300,7 +300,7 @@ On the Collection screen, once the game enables amiibo in Faron Woods, Link refi
 refills hearts, Ganondorf offers to double the damage you take and Wolf Link opens the Cave of Shadows;
 on the Quest Log screen Wolf Link stores a Quest Log for quick start, which touching it on the title
 screen starts. Wolf Link's data is kept in `~/Library/Application Support/TPHD/amiibo/`.
-`WWHD_AMIIBO=<figure>@<frame>` taps one for tests.
+`TPHD_AMIIBO=<figure>@<frame>` taps one for tests.
 
 **GamePad screen.** A separate window, picture-in-picture in a corner of the TV window (corner, size
 and opacity selectable), automatic picture-in-picture (shown for a few seconds when the GamePad
@@ -312,9 +312,9 @@ TP HD (USA), with profiles. Content mods replace files of the game's `content/` 
 (such as `res/Msgus/bmgres.arc`). Twilight Princess HD has no built-in mods yet, and no package has
 been tried with it.
 
-**Testing aids.** `WWHD_WARP=<frame>:<stage>,<point>,<room>,<layer>` warps to any place of the
+**Testing aids.** `TPHD_WARP=<frame>:<stage>,<point>,<room>,<layer>` warps to any place of the
 developer map select, and more warps can follow, separated by `;` (`tools/warplist.py` lists the
-1,987 places; Ordon Village on day 1 is `F_SP103,1,0,6`). `WWHD_STATE_SAVE_AT=<frame>:<slot>` takes a save state at a frame. Scripted routes
+1,987 places; Ordon Village on day 1 is `F_SP103,1,0,6`). `TPHD_STATE_SAVE_AT=<frame>:<slot>` takes a save state at a frame. Scripted routes
 with screenshots: `tools/audit/run_route.sh`.
 
 **Shader head start.** The first time the game meets a shader it translates and compiles it. A head start
@@ -328,9 +328,9 @@ python3 tools/shaderprep.py template ~/Library/Caches/tphd/shaders.bin   # -> ga
 python3 tools/shaderprep.py build                                          # -> game/shadercache/headstart.bin
 ```
 
-`--merge game/shadercache/template.bin` adds a later session to the template, and `./build/cmake/wwhd
+`--merge game/shadercache/template.bin` adds a later session to the template, and `./build/cmake/tphd
 --warm-shaders` compiles everything once to fill the macOS shader cache. The game loads
-`game/shadercache/headstart.bin` by itself (`WWHD_HEADSTART=<file>` or `0` changes or disables it).
+`game/shadercache/headstart.bin` by itself (`TPHD_HEADSTART=<file>` or `0` changes or disables it).
 
 Settings, controls, mod packages and save states are kept in `~/Library/Application Support/TPHD`,
 the shader cache in `~/Library/Caches/tphd` (both in `data/user` in a packaged folder). Crashes write

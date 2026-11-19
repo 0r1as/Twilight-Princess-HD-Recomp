@@ -1,4 +1,4 @@
-// wwhd-extract: reads the game from a Wii U disc image (.wud/.wux) or a Cemu Wii U archive (.wua)
+// tphd-extract: reads the game from a Wii U disc image (.wud/.wux) or a Cemu Wii U archive (.wua)
 // and extracts it; used by the installer.
 //
 // Disc images: native port of tools/wudextract.py (itself a port of Cemu's
@@ -8,12 +8,12 @@
 // (<title id>_v<version>, e.g. 0005000010143500_v0 for the game, 0005000e10143500_v.. for an update).
 //
 // usage:
-//   wwhd-extract [KEYS] [--progress] info    IMAGE          check the keys, print the title
-//   wwhd-extract [KEYS]              list    IMAGE          list the game partition's files
-//   wwhd-extract [KEYS] [--progress] extract IMAGE OUTDIR   extract the game partition
-//   wwhd-extract [--title T]         info    ARCHIVE.wua    list the titles (and the selected one)
-//   wwhd-extract                     list    ARCHIVE.wua    list all files
-//   wwhd-extract [--title T] [--progress] extract ARCHIVE.wua OUTDIR
+//   tphd-extract [KEYS] [--progress] info    IMAGE          check the keys, print the title
+//   tphd-extract [KEYS]              list    IMAGE          list the game partition's files
+//   tphd-extract [KEYS] [--progress] extract IMAGE OUTDIR   extract the game partition
+//   tphd-extract [--title T]         info    ARCHIVE.wua    list the titles (and the selected one)
+//   tphd-extract                     list    ARCHIVE.wua    list all files
+//   tphd-extract [--title T] [--progress] extract ARCHIVE.wua OUTDIR
 //                                   check the archive's SHA-256, then extract one title's folder
 //                                   (code, content, meta) into OUTDIR
 //
@@ -691,9 +691,9 @@ std::vector<std::string> get_args(int argc, char** argv) {
 
 int usage() {
     fprintf(stderr,
-            "usage: wwhd-extract [--disc-key FILE] [--common-key FILE] [--keys-stdin] [--progress] [--only GLOB]...\n"
+            "usage: tphd-extract [--disc-key FILE] [--common-key FILE] [--keys-stdin] [--progress] [--only GLOB]...\n"
             "                    info IMAGE | list IMAGE | extract IMAGE OUTDIR\n"
-            "       wwhd-extract [--title ID [--code-sha256 HEX]] [--progress] [--only GLOB]... info ARCHIVE.wua | list ARCHIVE.wua |\n"
+            "       tphd-extract [--title ID [--code-sha256 HEX]] [--progress] [--only GLOB]... info ARCHIVE.wua | list ARCHIVE.wua |\n"
             "                    extract ARCHIVE.wua OUTDIR\n");
     return 2;
 }

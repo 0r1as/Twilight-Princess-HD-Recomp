@@ -49,7 +49,7 @@ void log_msg(const char* fmt, ...) {
     va_end(ap2);
     g_log_next++;
 #ifdef __ANDROID__
-    __android_log_vprint(ANDROID_LOG_INFO, "wwhd", fmt, ap);  // adb logcat -s wwhd
+    __android_log_vprint(ANDROID_LOG_INFO, "tphd", fmt, ap);  // adb logcat -s tphd
     va_end(ap);
 #else
     vfprintf(stderr, fmt, ap);
@@ -74,7 +74,7 @@ void fatal(const char* fmt, ...) {
         va_list ap;
         va_start(ap, fmt);
 #ifdef __ANDROID__
-        __android_log_vprint(ANDROID_LOG_FATAL, "wwhd", fmt, ap);
+        __android_log_vprint(ANDROID_LOG_FATAL, "tphd", fmt, ap);
 #else
         fprintf(stderr, "FATAL: ");
         vfprintf(stderr, fmt, ap);

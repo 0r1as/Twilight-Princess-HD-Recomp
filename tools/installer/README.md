@@ -12,7 +12,7 @@ A release folder contains `portable.txt`. Then everything stays in `<release>/da
 
 | path | what |
 |---|---|
-| `data/bin/wwhd` (`.exe`) | the built game; `data/bin/portable.txt` puts the runtime in portable mode |
+| `data/bin/tphd` (`.exe`) | the built game; `data/bin/portable.txt` puts the runtime in portable mode |
 | `data/game/` | game files extracted from a disc image or Cemu archive (an extracted folder chosen by the player is used where it is) |
 | `data/save/` | saves (`user/ZTP00.dat` to `ZTP02.dat`, one per Quest Log, and `COMMON.dat`) |
 | `data/user/` | settings, controls, graphics options, save states, shader caches (`host::portable_user_dir()`) |
@@ -82,7 +82,7 @@ text) and what to do, offers to show the folder involved, and appends the same t
 setup.log` on macOS, `%TEMP%\Twilight Princess HD setup.log` on Windows, `$TMPDIR/twilight-princess-hd-setup.log`
 on Linux).
 
-Build: `-DWWHD_SETUP_GUI=ON` adds the `wwhd-setup` target (`cmake/SetupGui.cmake`). SDL3 is linked
+Build: `-DTPHD_SETUP_GUI=ON` adds the `tphd-setup` target (`cmake/SetupGui.cmake`). SDL3 is linked
 statically on macOS and Windows (pinned source, release toolchain); Linux uses the shared SDL3 the
 release ships in `sdk/runtime`. The ImGui SDL3 and SDL_Renderer backends are the unmodified ones of
 the vendored ImGui release.
@@ -96,7 +96,7 @@ and unpacks it, and `tools/release/guard.py` allows exactly those files there. I
 the Python Software Foundation's signature (the release workflow checks it); its license is in
 `third-party-licenses/Python.txt`. It lives in the release folder, not in the data folder, because it belongs
 to the release (like `tools/` and `sdk/`): the same place works for portable and per-user (`%LOCALAPPDATA%\TPHD`)
-installations and for `--data-dir`/`WWHD_DATA_DIR`, and a newer release brings its own.
+installations and for `--data-dir`/`TPHD_DATA_DIR`, and a newer release brings its own.
 
 `Twilight Princess HD.exe` starts `tools\python\python.exe tools\installer\setup.py --gui-protocol` directly
 (`gui/console_setup_win.cpp`); `--console-setup ARGS` (the first argument; used by
@@ -168,7 +168,7 @@ A `.wua` is Cemu's Wii U archive: a [ZArchive](https://github.com/Exzap/ZArchive
 title named `<title id>_v<version>`, often the game, its update and DLC together. No keys are needed:
 the GUI skips the key screen and the terminal setup asks for none.
 
-`wwhd-extract --title 000500001019E500 info GAME.wua` lists every title folder and the one selected;
+`tphd-extract --title 000500001019E500 info GAME.wua` lists every title folder and the one selected;
 setup then decides (`archive_choice` in `setup.py`) and logs which title it uses and why:
 
 - the game itself, `000500001019e500_v81`, is used: the port's translated code and its hooks are made
@@ -178,7 +178,7 @@ setup then decides (`archive_choice` in `setup.py`) and logs which title it uses
 - another region, an archive with only the update, another game, or a version other than 81 stop
   with an explanation.
 
-`wwhd-extract --title FOLDER --progress extract GAME.wua data/game.partial` first checks the archive's
+`tphd-extract --title FOLDER --progress extract GAME.wua data/game.partial` first checks the archive's
 SHA-256 ("phase verify", the step's bar shows "checking the archive"), then writes the title folder's
 `code`, `content` and `meta` ("phase extract"); damaged archives (exit 8), truncated or foreign files
 (exit 7) and a missing title (exit 10) are reported before anything is written. The space check is
@@ -197,6 +197,6 @@ already when the window probes it), a disc image or Cemu archive right after ext
 installed files. On a mismatch the message says what was found (another title, "an update merged in"
 when `code/app.xml` or `meta/meta.xml` give another version or the update's title id, otherwise
 "not the expected file" with the start of its SHA-256), what is needed and how to get it. Tests:
-`GameVersion` in `test_setup.py` (synthetic files; `WWHD_GAME_DIR=game` also checks your own copy).
+`GameVersion` in `test_setup.py` (synthetic files; `TPHD_GAME_DIR=game` also checks your own copy).
 The recompiler reads only `code/Zelda.rpx` (the runtime checks at start that it matches the translated
 code); the other files in `code/` (`app.xml`, `cos.xml`) are metadata and are not checked.

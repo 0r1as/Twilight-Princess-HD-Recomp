@@ -24,7 +24,7 @@ is built per texture by `02B889F4` (hooked in `runtime/src/button_prompts.cpp`):
 with the prefix `"/tex/"` (`100AFBF0`; `"/geo/"`, `100AFBF8`, for models), the formats `"/%s/%s.%s"`
 (`100AFC00`) / `"/%s/%s/%s.%s"` (`100AFC0C`) and the extension `"gtx"` (`100AFBE8`; `"gmx"`, `100AFBEC`). It runs
 once per texture when an archive is mounted, so a texture handed out under another name is the one the game
-draws wherever it uses it. `WWHD_TEX_TRACE=1` logs each HD path built.
+draws wherever it uses it. `TPHD_TEX_TRACE=1` logs each HD path built.
 
 ## Button textures seen (title, Ordon Spring, Ordon Village, menus; 1,608 HD paths)
 
@@ -44,7 +44,7 @@ draws wherever it uses it. `WWHD_TEX_TRACE=1` logs each HD path built.
 
 ## What the Xbox style swaps (button_prompts.cpp)
 
-Controls -> Button prompts -> Xbox letters (saved as `buttonPrompts`; `WWHD_BUTTON_PROMPTS=original|xbox` for one
+Controls -> Button prompts -> Xbox letters (saved as `buttonPrompts`; `TPHD_BUTTON_PROMPTS=original|xbox` for one
 start) hands each of these textures out under its partner's name. The style is fixed when the game loads its
 first HD texture (the HUD's archive loads at boot), so a change applies at the next start.
 

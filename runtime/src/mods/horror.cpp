@@ -21,7 +21,7 @@
 // beat and cut. The tint is
 // bloom_c's mono colour (look.cpp's hook on bloom_c::draw): the frame's red channel times the colour, blended by its
 // alpha, which the environment sets every frame.
-// Test aid: WWHD_HORROR=<blood|stalker|creep|shadow>@<frame> starts that event at TV frame <frame> whatever the
+// Test aid: TPHD_HORROR=<blood|stalker|creep|shadow>@<frame> starts that event at TV frame <frame> whatever the
 // chances and the moment, and spawn:<hex process>@<frame> makes one of that enemy in front of Link; several follow
 // each other separated by ';'.
 #include "horror.h"
@@ -198,7 +198,7 @@ bool roll(Kind kind, const int percent[4]) {
     return chance(percent[often()]);
 }
 
-// WWHD_HORROR: forced events or spawns, each once its frame comes ("blood@5701;stalker@7201" for several in turn)
+// TPHD_HORROR: forced events or spawns, each once its frame comes ("blood@5701;stalker@7201" for several in turn)
 struct Forced {
     Kind kind = kNone;
     int proc = 0;
@@ -207,7 +207,7 @@ struct Forced {
 const std::vector<Forced>& forced() {
     static const std::vector<Forced> list = [] {
         std::vector<Forced> out;
-        for (const char* e = getenv("WWHD_HORROR"); e && *e; e = strchr(e, ';') ? strchr(e, ';') + 1 : nullptr) {
+        for (const char* e = getenv("TPHD_HORROR"); e && *e; e = strchr(e, ';') ? strchr(e, ';') + 1 : nullptr) {
             Forced f;
             if (const char* at = strchr(e, '@')) f.frame = strtoull(at + 1, nullptr, 10);
             if (!strncmp(e, "spawn:", 6)) f.proc = (int)strtol(e + 6, nullptr, 16);

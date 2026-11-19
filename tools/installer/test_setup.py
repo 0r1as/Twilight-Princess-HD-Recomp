@@ -87,7 +87,7 @@ def _title(tid, version, files=10, size=1000):
 
 
 class ArchiveTitles(unittest.TestCase):
-    """Which title of a Cemu archive (.wua) is used (info as wwhd-extract --title 000500001019e500 info prints it)."""
+    """Which title of a Cemu archive (.wua) is used (info as tphd-extract --title 000500001019e500 info prints it)."""
 
     BASE, UPDATE = _title("000500001019e500", 81), _title("0005000e1019e500", 16)
 
@@ -129,7 +129,7 @@ class ArchiveTitles(unittest.TestCase):
     UNLABELED = _title("0000000000000000", 0)
 
     def test_unlabeled_recognised_by_code(self):
-        # wwhd-extract selected the archive's only, unlabeled title because its code/Zelda.rpx has the expected SHA-256
+        # tphd-extract selected the archive's only, unlabeled title because its code/Zelda.rpx has the expected SHA-256
         info = self.info([self.UNLABELED], self.UNLABELED)
         info["unlabeled"] = "1"
         folder, notes = setup.archive_choice(info)
@@ -138,10 +138,10 @@ class ArchiveTitles(unittest.TestCase):
         self.assertIn("recognised as Twilight Princess HD (USA), version 81, by its game code", notes[0])
 
     def test_unlabeled_not_recognised(self):
-        # selected without the code check (an older wwhd-extract, no --title): version 0 is not the game's
+        # selected without the code check (an older tphd-extract, no --title): version 0 is not the game's
         with self.assertRaisesRegex(setup.SetupError, "version 0.*built for version 81"):
             setup.archive_choice(self.info([self.UNLABELED], self.UNLABELED))
-        # the code didn't match (wwhd-extract selected nothing): the archive is refused
+        # the code didn't match (tphd-extract selected nothing): the archive is refused
         with self.assertRaisesRegex(setup.SetupError, "does not contain Twilight Princess HD.*0000000000000000_v0"):
             setup.archive_choice(self.info([self.UNLABELED]))
 
@@ -151,12 +151,12 @@ class ArchiveTitles(unittest.TestCase):
         def fake_run(cmd, **kw):
             seen.append(cmd)
             return subprocess.CompletedProcess(cmd, 0, b"format wua\nunlabeled 1\n", b"")
-        with mock.patch.object(setup, "extractor", return_value="wwhd-extract"), \
+        with mock.patch.object(setup, "extractor", return_value="tphd-extract"), \
                 mock.patch.object(setup.subprocess, "run", side_effect=fake_run):
             problem, _, info = setup.archive_info("game.wua")
         self.assertIsNone(problem)
         self.assertEqual(info["unlabeled"], "1")
-        self.assertEqual(seen[0], ["wwhd-extract", "--title", setup.SUPPORTED_TITLE, "--code-sha256",
+        self.assertEqual(seen[0], ["tphd-extract", "--title", setup.SUPPORTED_TITLE, "--code-sha256",
                                    setup.SUPPORTED_RPX_SHA256, "info", "game.wua"])
         self.assertEqual(setup.code_hash_args("0000000000000000_v0"), [])  # a folder name: no code check needed
 
@@ -248,15 +248,15 @@ class GameVersion(unittest.TestCase):
             with self.assertRaisesRegex(setup.SetupError, "cannot read"):
                 setup.check_game_version(d)
 
-    @unittest.skipUnless(os.environ.get("WWHD_GAME_DIR"), "WWHD_GAME_DIR (your own extracted game) not set")
+    @unittest.skipUnless(os.environ.get("TPHD_GAME_DIR"), "TPHD_GAME_DIR (your own extracted game) not set")
     def test_real_game(self):
         setup.SUPPORTED_RPX_SHA256 = self.saved
-        setup.check_game_version(os.environ["WWHD_GAME_DIR"])  # read only
+        setup.check_game_version(os.environ["TPHD_GAME_DIR"])  # read only
 
 
 class Recipe(unittest.TestCase):
     def test_substitution(self):
-        m = {"sdk": "/p/sdk", "gamecode": "/w/libgamecode.a", "out": "/d/bin/wwhd"}
+        m = {"sdk": "/p/sdk", "gamecode": "/w/libgamecode.a", "out": "/d/bin/tphd"}
         self.assertEqual(setup.sub("{sdk}/obj/a.o", m), "/p/sdk/obj/a.o")
         self.assertEqual(setup.sub("-I{sdk}/include", m), "-I/p/sdk/include")
         self.assertEqual(setup.sub("{gamecode}", m), "/w/libgamecode.a")
@@ -299,21 +299,53 @@ class SpecialCharactersInLauncherFolder(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             data = os.path.join(t, self.FOLDER)
             os.makedirs(data)
-            exe = os.path.join(data, "wwhd")
+            exe = os.path.join(data, "tphd")
             with open(exe, "w") as f:
-                f.write('#!/bin/sh\nprintf "%s\\n" "$PWD" "$@" > "$WWHD_TEST_OUT"\n')
+                f.write('#!/bin/sh\nprintf "%s\\n" "$PWD" "$@" > "$TPHD_TEST_OUT"\n')
             os.chmod(exe, 0o755)
             out = os.path.join(t, "out")
             with mock.patch.dict(os.environ, {"XDG_DATA_HOME": t}), \
                     mock.patch.object(setup, "write_game_icon", return_value=None):
                 play = setup.linux_launchers(data, exe)
-            subprocess.run(["sh", play, "--x"], check=True, env=dict(os.environ, WWHD_TEST_OUT=out))
+            subprocess.run(["sh", play, "--x"], check=True, env=dict(os.environ, TPHD_TEST_OUT=out))
             with open(out) as f:
                 self.assertEqual(f.read().splitlines(), [data, "--game", "game", "--save", "save", "--x"])
             with open(os.path.join(t, "applications", "tphd.desktop")) as f:
                 keys = dict(line.split("=", 1) for line in f.read().splitlines() if "=" in line)
             self.assertEqual(self.exec_argument(keys["Exec"]), (play, ""))
             self.assertEqual(keys["Path"].replace("\\\\", "\\"), data)
+
+
+class RenamedInstall(unittest.TestCase):
+    """An install from before the rename to tphd: an update removes the old game and icon and keeps the rest."""
+
+    def test_old_names_removed(self):
+        with tempfile.TemporaryDirectory() as data:
+            bin_dir = os.path.join(data, "bin")
+            os.makedirs(bin_dir)
+            for name in ("bin/wwhd" + setup.EXE_SUFFIX, "bin/tphd" + setup.EXE_SUFFIX, "wwhd.png", "wwhd.ico",
+                         "tphd.png", "bin/SDL3.dll", "save/keep"):
+                os.makedirs(os.path.dirname(os.path.join(data, name)), exist_ok=True)
+                open(os.path.join(data, name), "w").close()
+            setup.remove_old_names(data, bin_dir)
+            left = sorted(os.path.relpath(os.path.join(r, f), data) for r, _, fs in os.walk(data) for f in fs)
+            self.assertEqual(left, sorted(["bin/tphd" + setup.EXE_SUFFIX, "tphd.png", "bin/SDL3.dll", "save/keep"]))
+
+    def test_toolchain_marker_kept(self):
+        """A compiler unpacked before the rename (marker .wwhd-toolchain) is used, not downloaded again."""
+        tc = {"kind": "zig", "dir": "zig-x", "sha256": "ab" * 32, "url": "https://example.invalid/zig-x.tar.xz", "size": 1,
+              "target": "x86_64-linux-gnu.2.35"}
+        with tempfile.TemporaryDirectory() as data:
+            tdir = os.path.join(data, "toolchain", "zig-x")
+            os.makedirs(tdir)
+            with open(os.path.join(tdir, ".wwhd-toolchain"), "w") as f:
+                f.write(tc["sha256"] + "\n")
+            with mock.patch.object(setup, "load_toolchains", return_value={"toolchains": {"zig-x": tc}}), \
+                    mock.patch.object(setup, "download", side_effect=AssertionError("downloaded again")):
+                t = setup.get_toolchain("zig-x", data, None)
+            self.assertEqual(t.cc[0], os.path.join(tdir, "zig"))
+            self.assertTrue(os.path.isfile(os.path.join(tdir, ".tphd-toolchain")))
+            self.assertFalse(os.path.exists(os.path.join(tdir, ".wwhd-toolchain")))
 
 
 class AppImageShortcut(unittest.TestCase):

@@ -24,7 +24,7 @@ mods::packages::View view(const std::string& id) {for(auto v:mods::packages::lis
 // Second process on the same storage: a confirmed native package loads after a restart without asking.
 int restart_check(const char* storage) {
     using namespace mods::packages;
-    env("WWHD_NO_HOST_INPUT","1");env("WWHD_MOD_MANAGER_DIR",storage);env("WWHD_TEST_TRUST_NATIVE_MODS",nullptr);
+    env("TPHD_NO_HOST_INPUT","1");env("TPHD_MOD_MANAGER_DIR",storage);env("TPHD_TEST_TRUST_NATIVE_MODS",nullptr);
     initialize();std::string error;
     assert(view("fixture").enabled && view("fixture").native_confirmed && unconfirmed_native("fixture").empty());
     frame(1);assert(view("fixture").active && view("fixture").status=="changed");
@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     if(argc == 3 && std::string(argv[1]) == "--restart") return restart_check(argv[2]);
     if(argc==2&&(std::string(argv[1])=="--cemu-startup"||std::string(argv[1])=="--cemu-backend")){
         bool backend=std::string(argv[1])=="--cemu-backend";
-        auto root=fs::temp_directory_path()/("wwhd-cemu-startup-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        auto root=fs::temp_directory_path()/("tphd-cemu-startup-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
         auto storage=root/"storage",pack=storage/"Mods"/"cemu.test";fs::create_directories(pack);
         std::ofstream(pack/"manifest.json")<<R"({"format_version":1,"id":"cemu.test","name":"Test","version":"1.0.0","game_id":"tphd-usa","kind":"cemu","cemu_dir":""})";
         std::ofstream(pack/"rules.txt")<<"[Definition]\nname=Test\ntitleIds=000500001019e500\nversion=4\n[Preset]\nname=Normal\n$scale=1\n[Preset]\nname=Double\n$scale=2\n[TextureRedefine]\nwidth=1280\nheight=720\noverwriteWidth=1280*$scale\n";
@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
             std::ofstream(content/"manifest.json")<<R"({"format_version":1,"id":"content.test","name":"Content","version":"1.0.0","game_id":"tphd-usa","kind":"content","content_dir":"content"})";
             std::ofstream(storage/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"cemu.test":true,"content.test":true}}}})";
         }
-        env("WWHD_NO_HOST_INPUT","1");env("WWHD_MOD_MANAGER_DIR",storage.string().c_str());initialize();
+        env("TPHD_NO_HOST_INPUT","1");env("TPHD_MOD_MANAGER_DIR",storage.string().c_str());initialize();
         if(backend){
             assert(!mods::content::replacement("res/Object/test.arc").empty());
             for(const auto& view:list())if(view.id=="cemu.test")assert(!view.active&&!view.compatible&&view.enabled);
@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
         std::cout<<"Cemu startup presets and restart-only immutable lifecycle passed\n";return 0;
     }
     if(argc==2&&std::string(argv[1])=="--content-startup"){
-        auto root=fs::temp_directory_path()/("wwhd-content-test-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        auto root=fs::temp_directory_path()/("tphd-content-test-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
         auto storage=root/"storage";auto pack=storage/"Mods"/"content.test";
         fs::create_directories(pack/"content"/"res"/"Object");
         std::ofstream(pack/"content"/"res"/"Object"/"fixture.arc")<<"synthetic replacement";
@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
         std::ofstream(pack/"manifest.json")<<R"({"format_version":1,"id":"content.test","name":"Test","version":"1.0.0","game_id":"tphd-usa","kind":"content","content_dir":"content"})";
         // a profile saved before 2026-10-09 still has Wind Waker's built-in mod choices: ignored
         std::ofstream(storage/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"content.test":true},"builtins":{"quick-doors":true}}}})";
-        env("WWHD_NO_HOST_INPUT","1");env("WWHD_MOD_MANAGER_DIR",storage.string().c_str());
+        env("TPHD_NO_HOST_INPUT","1");env("TPHD_MOD_MANAGER_DIR",storage.string().c_str());
         assert(mods::content::replacement("/vol/content/res/Object/fixture.arc").empty());initialize();
         auto file=mods::content::replacement("/vol/content/RES/object/FIXTURE.arc");assert(file==(pack/"content"/"res"/"Object"/"fixture.arc").string());
         assert(mods::content::replacement("res/Object/fixture.arc")==file);
@@ -96,12 +96,12 @@ int main(int argc, char** argv) {
         fs::remove_all(root);std::cout<<"Startup overrides, read-only routing, boundaries, and restart lifecycle passed\n";return 0;
     }
     assert(argc == 3 || argc == 4);
-    env("WWHD_TEST_TRUST_NATIVE_MODS",nullptr);
+    env("TPHD_TEST_TRUST_NATIVE_MODS",nullptr);
     auto root=fs::path(argv[1])/std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
     assert(!fs::exists(root));
     fs::create_directories(root);
-    env("WWHD_NO_HOST_INPUT","1");
-    env("WWHD_MOD_MANAGER_DIR",(root/"storage").string().c_str());
+    env("TPHD_NO_HOST_INPUT","1");
+    env("TPHD_MOD_MANAGER_DIR",(root/"storage").string().c_str());
     initialize();
     std::string error;
     // the fixture library under other IDs, for the checks that need no particular mod
@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
     assert(configure("typed","rate",5,error));assert(!configure("typed","rate",11,error));
     assert(configure("typed","mode","b",error));assert(!configure("typed","mode","c",error));
     assert(install((root/"typed").string(),error));assert(remove("typed",error));
-    auto bad=root/"bad.wwhdmod";std::ofstream(bad)<<"not a package";assert(!install(bad.string(),error));
+    auto bad=root/"bad.tphdmod";std::ofstream(bad)<<"not a package";assert(!install(bad.string(),error));
     auto native=root/"native";fs::create_directories(native);
     fs::copy_file(argv[2],native/"fixture.dylib");
     std::ofstream(native/"manifest.json") << "{\"format_version\":1,\"id\":\"fixture\",\"name\":\"Fixture\",\"version\":\"1.0.0\",\"game_id\":\"tphd-usa\",\"kind\":\"native\",\"abi_version\":1,\"binaries\":{\""
@@ -157,8 +157,8 @@ int main(int argc, char** argv) {
     pending=unconfirmed_native("needs-native");assert(pending.size()==2 && pending[0].first=="fixture" && pending[1].first=="needs-native");
     assert(!enable("needs-native",true,error));assert(remove("needs-native",error));
     // Test aid: pre-confirmed only in isolated test runs, and never written to profiles.json.
-    env("WWHD_TEST_TRUST_NATIVE_MODS","other,fixture");assert(find().native_confirmed && unconfirmed_native("fixture").empty());
-    env("WWHD_TEST_TRUST_NATIVE_MODS",nullptr);assert(!find().native_confirmed && trusted().empty());
+    env("TPHD_TEST_TRUST_NATIVE_MODS","other,fixture");assert(find().native_confirmed && unconfirmed_native("fixture").empty());
+    env("TPHD_TEST_TRUST_NATIVE_MODS",nullptr);assert(!find().native_confirmed && trusted().empty());
     assert(confirm_native("fixture",error));assert(trusted().size()==64);
     assert(find().native_confirmed && unconfirmed_native("fixture").empty());
     assert(enable("fixture",true,error));frame(6);

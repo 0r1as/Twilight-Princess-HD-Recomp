@@ -7,7 +7,7 @@ namespace button_prompts {
 enum Style : int { kOriginal = 0, kXbox, kStyles };
 const char* name(int style);
 // The style drawn this session. It is fixed by the first HD texture the game loads (the HUD's archive is loaded
-// at boot), from WWHD_BUTTON_PROMPTS=original|xbox or the saved choice.
+// at boot), from TPHD_BUTTON_PROMPTS=original|xbox or the saved choice.
 int active();
 int saved();  // the choice in the Controls tab (applies at the next start)
 void set_saved(int style);

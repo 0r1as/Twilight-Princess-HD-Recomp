@@ -4,7 +4,7 @@
 #include "cemu_pack.h"
 #include "tunic.h"
 #include "../platform/host.h"
-#include "wwhd_mod.h"
+#include "tphd_mod.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -130,10 +130,10 @@ Manifest manifest(const fs::path& path){
 }
 Value& profile(){return database["profiles"][database.get("active").string("Default")];}
 bool wanted(const std::string& id){const auto& v=profile().get("enabled").get(id);return v.type==Value::Bool&&v.boolean;}
-// Test aid: WWHD_TEST_TRUST_NATIVE_MODS=id[,id...] pre-confirms packages, only in isolated test runs
-// (WWHD_NO_HOST_INPUT plus an explicit WWHD_MOD_MANAGER_DIR). Nothing is written to profiles.json.
+// Test aid: TPHD_TEST_TRUST_NATIVE_MODS=id[,id...] pre-confirms packages, only in isolated test runs
+// (TPHD_NO_HOST_INPUT plus an explicit TPHD_MOD_MANAGER_DIR). Nothing is written to profiles.json.
 bool test_trusted(const std::string& id){
-    const char* list=std::getenv("WWHD_TEST_TRUST_NATIVE_MODS");if(!list||!std::getenv("WWHD_NO_HOST_INPUT")||!std::getenv("WWHD_MOD_MANAGER_DIR"))return false;
+    const char* list=std::getenv("TPHD_TEST_TRUST_NATIVE_MODS");if(!list||!std::getenv("TPHD_NO_HOST_INPUT")||!std::getenv("TPHD_MOD_MANAGER_DIR"))return false;
     for(std::string_view rest=list;!rest.empty();){auto comma=rest.find(',');if(rest.substr(0,comma)==id)return true;if(comma==std::string_view::npos)break;rest.remove_prefix(comma+1);}
     return false;
 }
@@ -159,8 +159,8 @@ void validate_conflicts(const std::set<std::string>& enabled){
     for(const auto& id:enabled){const auto& m=records.at(id).manifest;for(const auto& [file,path]:m.files){auto [it,inserted]=file_owners.emplace(file,id);require(inserted,"Content file conflict: "+file+" between "+id+" and "+it->second);}for(const auto& conflict:m.conflicts)require(!enabled.contains(conflict),m.name+" conflicts with "+conflict);}
 }
 template<class Fn> bool operation(std::string& error,Fn fn){try{std::lock_guard guard(mutex);require(ready,"Mod manager storage is unavailable");fn();error.clear();return true;}catch(const std::exception& e){error=e.what();return false;}}
-struct Context {std::string id,path,status;Value config;WWHDModHostV1 host{};};
-struct Live {std::unique_ptr<Context> context;WWHDModV1 api{};void* library=nullptr;bool initialized=false;};
+struct Context {std::string id,path,status;Value config;TPHDModHostV1 host{};};
+struct Live {std::unique_ptr<Context> context;TPHDModV1 api{};void* library=nullptr;bool initialized=false;};
 std::map<std::string,Live> live; // game thread exclusively
 std::vector<std::string> live_order;
 const Value& option(void* c,const char* id){return static_cast<Context*>(c)->config.get(id?id:"");}
@@ -175,12 +175,12 @@ void load(Live& item,const Record& record,const Value& configuration){
     item.context=std::make_unique<Context>();auto& c=*item.context;c.id=record.manifest.id;c.path=record.path.string();c.config=configuration;
     auto path=record.path/record.manifest.binary;
 #ifdef _WIN32
-    item.library=LoadLibraryW(path.wstring().c_str());require(item.library,"Cannot load native mod library");auto init=reinterpret_cast<WWHDModInitV1>(GetProcAddress(static_cast<HMODULE>(item.library),"wwhd_mod_init_v1"));
+    item.library=LoadLibraryW(path.wstring().c_str());require(item.library,"Cannot load native mod library");auto init=reinterpret_cast<TPHDModInitV1>(GetProcAddress(static_cast<HMODULE>(item.library),"tphd_mod_init_v1"));
 #else
-    item.library=dlopen(path.c_str(),RTLD_NOW|RTLD_LOCAL);if(!item.library){const char* reason=dlerror();throw std::runtime_error(reason?reason:"Cannot load native library");}auto init=reinterpret_cast<WWHDModInitV1>(dlsym(item.library,"wwhd_mod_init_v1"));
+    item.library=dlopen(path.c_str(),RTLD_NOW|RTLD_LOCAL);if(!item.library){const char* reason=dlerror();throw std::runtime_error(reason?reason:"Cannot load native library");}auto init=reinterpret_cast<TPHDModInitV1>(dlsym(item.library,"tphd_mod_init_v1"));
 #endif
-    require(init,"Native library has no wwhd_mod_init_v1 entry point");
-    c.host={sizeof(WWHDModHostV1),1,&c,kGameId,c.path.c_str(),
+    require(init,"Native library has no tphd_mod_init_v1 entry point");
+    c.host={sizeof(TPHDModHostV1),1,&c,kGameId,c.path.c_str(),
         [](void*,uint32_t a,void* b,size_t n){return read_memory?read_memory(a,b,n):0;},
         [](void*,uint32_t a,const void* b,size_t n){return write_memory?write_memory(a,b,n):0;},
         [](void* p,const char* s){fprintf(stderr,"[mod:%s] %s\n",static_cast<Context*>(p)->id.c_str(),s?s:"");},
@@ -188,8 +188,8 @@ void load(Live& item,const Record& record,const Value& configuration){
         [](void* p,const char* id){return option(p,id).text.c_str();},
         [](void* p,const char* id){return option(p,id).number;},
         [](void* p,const char* id){return int(option(p,id).boolean);}};
-    item.api.size=sizeof(WWHDModV1);item.api.abi_version=1;
-    require(init(&c.host,&item.api)!=0,"Native mod initialization failed");require(item.api.size>=sizeof(WWHDModV1)&&item.api.abi_version==1,"Native library ABI does not match");item.initialized=true;
+    item.api.size=sizeof(TPHDModV1);item.api.abi_version=1;
+    require(init(&c.host,&item.api)!=0,"Native mod initialization failed");require(item.api.size>=sizeof(TPHDModV1)&&item.api.abi_version==1,"Native library ABI does not match");item.initialized=true;
 }
 }
 
@@ -210,7 +210,7 @@ std::string platform_key(){
 #endif
 }
 void initialize(){
-    std::lock_guard guard(mutex);if(ready)return;const char* override=std::getenv("WWHD_MOD_MANAGER_DIR");if(std::getenv("WWHD_NO_HOST_INPUT")&&!override)return;
+    std::lock_guard guard(mutex);if(ready)return;const char* override=std::getenv("TPHD_MOD_MANAGER_DIR");if(std::getenv("TPHD_NO_HOST_INPUT")&&!override)return;
     root=override?fs::path(override):fs::path(host::config_dir())/"ModManager";ready=true;defaults();
     try{fs::create_directories(root);if(fs::exists(root/"profiles.json")){auto saved=json::parse(read_text(root/"profiles.json"));require(saved.get("format_version").type==Value::Number&&saved.get("format_version").number==1,"Unsupported profile format");require(saved.get("profiles").type==Value::Object&&!saved.get("profiles").object.empty(),"Invalid profiles");require(saved.get("active").type==Value::String&&saved.get("profiles").object.contains(saved.get("active").text),"Invalid active profile");database=std::move(saved);}scan();
         // Next-launch (restart_required) packages must be selected before the game starts.

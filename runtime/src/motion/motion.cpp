@@ -30,7 +30,7 @@ Settings g_settings;
 bool g_aiming = false;
 int g_gyro_controllers = 0;
 float g_mouse_dx = 0, g_mouse_dy = 0;
-const bool g_log = getenv("WWHD_GYRO_LOG") != nullptr;  // raw samples and the aim, twice a second
+const bool g_log = getenv("TPHD_GYRO_LOG") != nullptr;  // raw samples and the aim, twice a second
 
 struct Device {
     Fusion fusion;
@@ -51,7 +51,7 @@ VirtualPad g_pad;                       // the one virtual GamePad all sources t
 std::unique_ptr<dsu::Client> g_dsu;
 VpadMotion g_last;                      // the previous read's values (repeated reads)
 Clock::time_point g_last_read{}, g_read_log_at{};
-double g_last_game_time = -1;           // WWHD_TEST_GYRO: game time of the previous read
+double g_last_game_time = -1;           // TPHD_TEST_GYRO: game time of the previous read
 Aim g_read_aim;                         // aim given to the GamePad since the last log line
 float g_recalibrate_prev[2] = {};       // pad, key: held at the previous poll
 float g_stick_x = 0, g_stick_y = 0;  // the right stick, for the log
@@ -141,8 +141,8 @@ void apply_dsu(const Settings& s) {
     }
 }
 
-// WWHD_TEST_GYRO=from-to:yaw:pitch,... (game-time seconds, degrees per second);
-// WWHD_TEST_MOUSE=from-to:dx:dy,... (game-time seconds, mouse points per GamePad read)
+// TPHD_TEST_GYRO=from-to:yaw:pitch,... (game-time seconds, degrees per second);
+// TPHD_TEST_MOUSE=from-to:dx:dy,... (game-time seconds, mouse points per GamePad read)
 struct TestTurn { double from, to; float yaw, pitch; };
 std::vector<TestTurn> parse_turns(const char* var) {
     std::vector<TestTurn> out;
@@ -158,7 +158,7 @@ std::vector<TestTurn> parse_turns(const char* var) {
     return out;
 }
 const std::vector<TestTurn>& test_turns() {
-    static const std::vector<TestTurn> v = parse_turns("WWHD_TEST_GYRO");
+    static const std::vector<TestTurn> v = parse_turns("TPHD_TEST_GYRO");
     return v;
 }
 
@@ -231,7 +231,7 @@ Settings settings() {
 
 bool env_override() {
     static const bool e = [] {
-        const char* v = getenv("WWHD_GYRO");
+        const char* v = getenv("TPHD_GYRO");
         return v && source_from_id(v) >= 0;
     }();
     return e;
@@ -239,7 +239,7 @@ bool env_override() {
 
 void set_settings(const Settings& in) {
     Settings s = in;
-    if (env_override()) s.source = source_from_id(getenv("WWHD_GYRO"));
+    if (env_override()) s.source = source_from_id(getenv("TPHD_GYRO"));
     bool restart_dsu;
     {
         std::lock_guard lk(g_mu);
@@ -351,7 +351,7 @@ void right_stick(float x, float y) {
 }
 
 VpadMotion vpad(bool repeat) {
-    static const std::vector<TestTurn> test_mouse = parse_turns("WWHD_TEST_MOUSE");
+    static const std::vector<TestTurn> test_mouse = parse_turns("TPHD_TEST_MOUSE");
     for (auto& m : test_mouse)  // as the hosts send it, before this read takes it
         if (!repeat && mods::game_time() >= m.from && mods::game_time() < m.to) mouse_motion(m.yaw, m.pitch);
     std::lock_guard lk(g_mu);

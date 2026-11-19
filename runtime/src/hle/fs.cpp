@@ -119,7 +119,7 @@ std::string host_path(const std::string& guest) {
 // installed game.
 std::string read_path(const std::string& guest,const std::string& mode="rb") {
     auto override=mods::content::replacement(guest,mode);
-    if(!override.empty())if(const char* trace=std::getenv("WWHD_TEST_CONTENT_TRACE");trace&&std::string(trace)=="1")LOG("[content-mod] read %s -> %s",guest.c_str(),override.c_str());
+    if(!override.empty())if(const char* trace=std::getenv("TPHD_TEST_CONTENT_TRACE");trace&&std::string(trace)=="1")LOG("[content-mod] read %s -> %s",guest.c_str(),override.c_str());
     return override.empty()?host_path(guest):override;
 }
 

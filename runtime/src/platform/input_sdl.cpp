@@ -280,7 +280,7 @@ static void update_sensors(){
   if(g_sensors_on)LOG("[gyro] the game window %s the focus%s",focus?"has":"lost",focus?"":": SDL pauses controller events until it is back");
  }
  if(want==g_sensors_on){
-  if(!want||!focus||getenv("WWHD_NO_HOST_INPUT"))return;
+  if(!want||!focus||getenv("TPHD_NO_HOST_INPUT"))return;
   const uint64_t now=SDL_GetTicks();
   for(auto [id,pad]:g_controllers){
    if(!SDL_GamepadConnected(pad)||!has_motion(pad))continue;
@@ -326,8 +326,8 @@ void set_controller_hints(){
 }
 void init(){
  input_map::load_startup();
- // WWHD_NO_GAMEPAD only hides the GamePad screen window; WWHD_NO_CONTROLLERS turns off host controllers
- if(!getenv("WWHD_NO_CONTROLLERS")) {
+ // TPHD_NO_GAMEPAD only hides the GamePad screen window; TPHD_NO_CONTROLLERS turns off host controllers
+ if(!getenv("TPHD_NO_CONTROLLERS")) {
   if(!SDL_InitSubSystem(SDL_INIT_GAMEPAD)){LOG("[input] SDL gamepad initialization: %s",SDL_GetError());return;}
   int count=0;auto* ids=SDL_GetGamepads(&count);for(int i=0;i<count;i++)open_controller(ids[i]);SDL_free(ids);
   SDL_AddEventWatch(rumble_quit_watch,nullptr);
@@ -350,7 +350,7 @@ bool touch_from_controller(SDL_TouchID id){
  (void)id;return false;
 #endif
 }
-// debug: WWHD_TEST_POST_KEYS=300:F1,410:Down,420:Return,430:K/30 (held 30 frames) pushes key presses at TV
+// debug: TPHD_TEST_POST_KEYS=300:F1,410:Down,420:Return,430:K/30 (held 30 frames) pushes key presses at TV
 // frames into SDL's event queue, as gfx/input.mm does on macOS: they take the real path in hidden test runs
 // and reach only the settings overlay.
 static constexpr Uint64 kTestEventTime=4242;  // timestamp that marks them
@@ -358,14 +358,14 @@ static bool test_event(const SDL_Event& e){return e.common.timestamp==kTestEvent
 static void post_test_keys(){
  struct Post{uint64_t frame;SDL_Scancode code;bool down;};
  static std::vector<Post> posts=[]{
-  std::vector<Post> v;const char* e=getenv("WWHD_TEST_POST_KEYS");
+  std::vector<Post> v;const char* e=getenv("TPHD_TEST_POST_KEYS");
   for(const char* p=e;p&&*p;){
    char* end;uint64_t f=strtoull(p,&end,10);if(*end!=':')break;p=end+1;
    size_t len=strcspn(p,",");std::string k(p,len);p+=len+(p[len]==',');
    uint64_t hold=0;if(size_t sl=k.find('/');sl!=std::string::npos){hold=strtoull(k.c_str()+sl+1,nullptr,10);k.resize(sl);}
    int code=input_map::key_from_id(k);SDL_Scancode sc=SDL_SCANCODE_UNKNOWN;
    for(int i=0;i<SDL_SCANCODE_COUNT&&code!=input_map::kNoKey;i++)if(keycode((SDL_Scancode)i)==code){sc=(SDL_Scancode)i;break;}
-   if(sc==SDL_SCANCODE_UNKNOWN){LOG("[input] WWHD_TEST_POST_KEYS: unknown key %s",k.c_str());continue;}
+   if(sc==SDL_SCANCODE_UNKNOWN){LOG("[input] TPHD_TEST_POST_KEYS: unknown key %s",k.c_str());continue;}
    v.push_back({f,sc,true});v.push_back({f+hold,sc,false});
   }
   std::stable_sort(v.begin(),v.end(),[](const Post& a,const Post& b){return a.frame<b.frame;});
@@ -382,11 +382,11 @@ static void post_test_keys(){
 void handle_event(const SDL_Event& event){
  if(overlay::captures())mods::update_mouse();
  else if(mods::handle_mouse_event(event))return;
- if(event.type==SDL_EVENT_GAMEPAD_ADDED&&!getenv("WWHD_NO_CONTROLLERS"))open_controller(event.gdevice.which);
+ if(event.type==SDL_EVENT_GAMEPAD_ADDED&&!getenv("TPHD_NO_CONTROLLERS"))open_controller(event.gdevice.which);
  if(event.type==SDL_EVENT_GAMEPAD_REMOVED){std::lock_guard lk(g_pads_mu);auto i=g_controllers.find(event.gdevice.which);if(i!=g_controllers.end()){SDL_CloseGamepad(i->second);g_controllers.erase(i);}g_rumble_controllers.erase(event.gdevice.which);g_rumble_sent.erase(event.gdevice.which);g_accel.erase(event.gdevice.which);g_sensor_seen.erase(event.gdevice.which);g_sensor_kick.erase(event.gdevice.which);motion::controller_gone(event.gdevice.which);}
- if(event.type==SDL_EVENT_GAMEPAD_SENSOR_UPDATE){g_sensor_seen[event.gsensor.which]=SDL_GetTicks();if(!getenv("WWHD_NO_HOST_INPUT")&&!overlay::blocks_input())sensor_event(event.gsensor);return;}
+ if(event.type==SDL_EVENT_GAMEPAD_SENSOR_UPDATE){g_sensor_seen[event.gsensor.which]=SDL_GetTicks();if(!getenv("TPHD_NO_HOST_INPUT")&&!overlay::blocks_input())sensor_event(event.gsensor);return;}
  if(event.type==SDL_EVENT_WINDOW_FOCUS_LOST)release_keys();
- if(getenv("WWHD_NO_HOST_INPUT")&&!test_event(event))return;
+ if(getenv("TPHD_NO_HOST_INPUT")&&!test_event(event))return;
  if(overlay_event(event)||test_event(event))return;  // posted test keys reach only the overlay
  // Save states belong to the game window, not auxiliary controls/text windows.
  if((event.type==SDL_EVENT_KEY_DOWN||event.type==SDL_EVENT_KEY_UP) &&
@@ -443,7 +443,7 @@ void handle_event(const SDL_Event& event){
  #ifdef __ANDROID__
  // phones: the controller is the GamePad. Keys don't reach the game: controllers such as the
  // GameSir also show up as a keyboard and would press keyboard-mapped GamePad buttons twice.
- static const bool keyboardPad=getenv("WWHD_ANDROID_KEYBOARD")!=nullptr;
+ static const bool keyboardPad=getenv("TPHD_ANDROID_KEYBOARD")!=nullptr;
  if(!keyboardPad&&(event.type==SDL_EVENT_KEY_DOWN||event.type==SDL_EVENT_KEY_UP))return;
  #endif
  // a repeat never presses a key: one held down while the overlay had the keyboard stays out of the game until
@@ -470,13 +470,13 @@ void update(){
   stick(SDL_GAMEPAD_AXIS_LEFTX,SDL_GAMEPAD_AXIS_LEFTY,kPadLSUp,kPadLSDown,kPadLSLeft,kPadLSRight);stick(SDL_GAMEPAD_AXIS_RIGHTX,SDL_GAMEPAD_AXIS_RIGHTY,kPadRSUp,kPadRSDown,kPadRSLeft,kPadRSRight);
  }
  auto state=input_map::controller_state(input_map::current(),v);std::lock_guard lk(g_mu);std::copy(std::begin(v),std::end(v),g_values);g_pad=state;
- if(!overlay::blocks_input()&&!getenv("WWHD_NO_HOST_INPUT"))motion::poll_recalibrate(v,g_keys);
+ if(!overlay::blocks_input()&&!getenv("TPHD_NO_HOST_INPUT"))motion::poll_recalibrate(v,g_keys);
 }
-// debug: WWHD_PRESS=1000-1010:8000,1500-1505:0008 holds VPAD buttons (hex) during TV frame ranges
+// debug: TPHD_PRESS=1000-1010:8000,1500-1505:0008 holds VPAD buttons (hex) during TV frame ranges
 struct Press { uint64_t from, to; uint32_t bits; };
 static std::vector<Press> scripted() {
     std::vector<Press> v;
-    if (const char* e = getenv("WWHD_PRESS")) {
+    if (const char* e = getenv("TPHD_PRESS")) {
         unsigned long long a, b; unsigned bits; int n;
         while (sscanf(e, "%llu-%llu:%x%n", &a, &b, &bits, &n) == 3) {
             v.push_back({a, b, bits});
@@ -488,13 +488,13 @@ static std::vector<Press> scripted() {
     return v;
 }
 
-// debug: WWHD_KEYS=1200-1210:K,1300-1305:LeftShift+J holds keyboard keys (input_map key names)
-// during TV frame ranges. Unlike WWHD_PRESS they go through the controls mapping, so a test can
-// check a remapped controls file (also with WWHD_NO_HOST_INPUT=1).
+// debug: TPHD_KEYS=1200-1210:K,1300-1305:LeftShift+J holds keyboard keys (input_map key names)
+// during TV frame ranges. Unlike TPHD_PRESS they go through the controls mapping, so a test can
+// check a remapped controls file (also with TPHD_NO_HOST_INPUT=1).
 struct KeyPress { uint64_t from, to; std::vector<int> codes; };
 static std::vector<KeyPress> scripted_keys() {
     std::vector<KeyPress> v;
-    if (const char* e = getenv("WWHD_KEYS")) {
+    if (const char* e = getenv("TPHD_KEYS")) {
         unsigned long long a, b; int n;
         while (sscanf(e, "%llu-%llu:%n", &a, &b, &n) == 2) {
             e += n;
@@ -502,7 +502,7 @@ static std::vector<KeyPress> scripted_keys() {
             for (;;) {
                 size_t len = strcspn(e, "+,");
                 int code = input_map::key_from_id(std::string(e, len));
-                if (code == input_map::kNoKey) LOG("[input] WWHD_KEYS: unknown key %.*s", (int)len, e);
+                if (code == input_map::kNoKey) LOG("[input] TPHD_KEYS: unknown key %.*s", (int)len, e);
                 else kp.codes.push_back(code);
                 e += len;
                 if (*e != '+') break;
@@ -516,10 +516,10 @@ static std::vector<KeyPress> scripted_keys() {
     return v;
 }
 
-// debug: WWHD_STICK=9400-9600:0:1,... holds the left stick at (x, y) during TV frame ranges
-// (WWHD_RSTICK: the same for the right stick)
+// debug: TPHD_STICK=9400-9600:0:1,... holds the left stick at (x, y) during TV frame ranges
+// (TPHD_RSTICK: the same for the right stick)
 struct Stick { uint64_t from, to; float x, y; };
-static std::vector<Stick> scripted_stick(const char* var = "WWHD_STICK") {
+static std::vector<Stick> scripted_stick(const char* var = "TPHD_STICK") {
     std::vector<Stick> v;
     if (const char* e = getenv(var)) {
         unsigned long long a, b; float x, y; int n;
@@ -533,13 +533,13 @@ static std::vector<Stick> scripted_stick(const char* var = "WWHD_STICK") {
     return v;
 }
 
-// debug: timed test scenario, in real seconds from TV frame WWHD_TEST_ORIGIN (so a 30 fps and a 60 fps
+// debug: timed test scenario, in real seconds from TV frame TPHD_TEST_ORIGIN (so a 30 fps and a 60 fps
 // run get the same input at the same real time):
-//   WWHD_TEST_STICK=2-5:0:1,...   left stick (x, y) from 2 s to 5 s
-//   WWHD_TEST_RSTICK=2-5:1:0,...  right stick
-//   WWHD_TEST_PRESS=3-3.1:8000    buttons (hex)
-//   WWHD_TEST_MODE=2@0.5          60 fps mode at 0.5 s (0 off, 1 interpolation)
-//   WWHD_TEST_END=12              writes the file "test_done" at 12 s (the test script stops the game)
+//   TPHD_TEST_STICK=2-5:0:1,...   left stick (x, y) from 2 s to 5 s
+//   TPHD_TEST_RSTICK=2-5:1:0,...  right stick
+//   TPHD_TEST_PRESS=3-3.1:8000    buttons (hex)
+//   TPHD_TEST_MODE=2@0.5          60 fps mode at 0.5 s (0 off, 1 interpolation)
+//   TPHD_TEST_END=12              writes the file "test_done" at 12 s (the test script stops the game)
 namespace {
 struct TimedStick { double from, to; float x, y; };
 struct TimedPress { double from, to; uint32_t bits; };
@@ -550,7 +550,7 @@ struct Scenario {
     int mode = -1;
     double mode_at = 0, end = 0;
     Scenario() {
-        if (const char* e = getenv("WWHD_TEST_ORIGIN")) origin = strtoull(e, nullptr, 10);
+        if (const char* e = getenv("TPHD_TEST_ORIGIN")) origin = strtoull(e, nullptr, 10);
         auto timed_sticks = [](const char* e, std::vector<TimedStick>& out) {
             double a, b; float x, y; int n;
             while (e && sscanf(e, "%lf-%lf:%f:%f%n", &a, &b, &x, &y, &n) == 4) {
@@ -560,9 +560,9 @@ struct Scenario {
                 e++;
             }
         };
-        timed_sticks(getenv("WWHD_TEST_STICK"), sticks);
-        timed_sticks(getenv("WWHD_TEST_RSTICK"), rsticks);
-        if (const char* e = getenv("WWHD_TEST_PRESS")) {
+        timed_sticks(getenv("TPHD_TEST_STICK"), sticks);
+        timed_sticks(getenv("TPHD_TEST_RSTICK"), rsticks);
+        if (const char* e = getenv("TPHD_TEST_PRESS")) {
             double a, b; unsigned bits; int n;
             while (sscanf(e, "%lf-%lf:%x%n", &a, &b, &bits, &n) == 3) {
                 presses.push_back({a, b, bits});
@@ -571,8 +571,8 @@ struct Scenario {
                 e++;
             }
         }
-        if (const char* e = getenv("WWHD_TEST_MODE")) sscanf(e, "%d@%lf", &mode, &mode_at);
-        if (const char* e = getenv("WWHD_TEST_END")) end = atof(e);
+        if (const char* e = getenv("TPHD_TEST_MODE")) sscanf(e, "%d@%lf", &mode, &mode_at);
+        if (const char* e = getenv("TPHD_TEST_END")) end = atof(e);
     }
 };
 }  // namespace
@@ -591,7 +591,7 @@ static void apply_scenario(PadState& s) {
     double t = (double)(interp::logic_steps() - s0) / 30.0;
     static std::atomic<bool> mode_set{false}, ended{false};
     static std::atomic<int> dbg{0};
-    if (getenv("WWHD_TEST_DEBUG") && dbg++ % 30 == 0) LOG("[test] t=%.3f frame %llu", t, (unsigned long long)render::frame_count());
+    if (getenv("TPHD_TEST_DEBUG") && dbg++ % 30 == 0) LOG("[test] t=%.3f frame %llu", t, (unsigned long long)render::frame_count());
     if (sc.mode >= 0 && t >= sc.mode_at && !mode_set.exchange(true)) {
         LOG("[test] t=%.3f s: 60 fps mode %d", t, sc.mode);
         interp::set_mode(sc.mode);
@@ -608,7 +608,7 @@ static void apply_scenario(PadState& s) {
         if (t >= p.from && t < p.to) s.buttons |= p.bits;
 }
 
-static std::atomic<bool> g_pro{getenv("WWHD_PRO_CONTROLLER") != nullptr};
+static std::atomic<bool> g_pro{getenv("TPHD_PRO_CONTROLLER") != nullptr};
 bool pro_controller() { return g_pro.load(std::memory_order_relaxed); }
 void set_pro_controller(bool on) { g_pro = on; LOG("[input] keyboard/controller act as %s", on ? "Pro Controller" : "GamePad"); }
 
@@ -616,10 +616,10 @@ PadState read() {
     static const std::vector<Press> script = scripted();
     static const std::vector<Stick> sticks = scripted_stick();
     static const std::vector<KeyPress> keys = scripted_keys();
-    static const std::vector<Stick> rsticks = scripted_stick("WWHD_RSTICK");
+    static const std::vector<Stick> rsticks = scripted_stick("TPHD_RSTICK");
     std::lock_guard<std::mutex> lk(g_mu);
-    // debug: WWHD_NO_HOST_INPUT=1 ignores keyboard and host controllers (scripted test runs)
-    static const bool no_host = getenv("WWHD_NO_HOST_INPUT") != nullptr;
+    // debug: TPHD_NO_HOST_INPUT=1 ignores keyboard and host controllers (scripted test runs)
+    static const bool no_host = getenv("TPHD_NO_HOST_INPUT") != nullptr;
     if (!keys.empty()) {
         memset(g_script_keys, 0, sizeof g_script_keys);
         for (auto& p : keys)
@@ -641,8 +641,8 @@ PadState read() {
     s.touch = g_touch;
     s.tx = g_tx;
     s.ty = g_ty;
-    // debug: WWHD_LOG_BUTTONS=1 logs every change of the merged button bits
-    static const bool log_buttons = getenv("WWHD_LOG_BUTTONS") != nullptr;
+    // debug: TPHD_LOG_BUTTONS=1 logs every change of the merged button bits
+    static const bool log_buttons = getenv("TPHD_LOG_BUTTONS") != nullptr;
     static uint32_t last_buttons = 0;
     if (log_buttons && s.buttons != last_buttons) {
         LOG("[input] frame %llu buttons %04X", (unsigned long long)render::frame_count(), s.buttons);

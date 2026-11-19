@@ -21,7 +21,7 @@
 //                        silent frame), then the TV alone. The game faded both sides of a switch itself.
 // The game drives the GamePad's small speaker at DSP volume 4.0 against the TV's 1.64 (7.7 dB louder);
 // both play on the same host speakers here, so the GamePad mix is played at the TV's level.
-// WWHD_AUDIO_OUTPUT=auto (default) | tv | gamepad overrides it (debug).
+// TPHD_AUDIO_OUTPUT=auto (default) | tv | gamepad overrides it (debug).
 #pragma once
 #include <cstdint>
 #include <cstring>

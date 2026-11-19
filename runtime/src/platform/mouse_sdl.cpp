@@ -14,7 +14,7 @@ void mouse_init(SDL_Window* window) { tv = window; }
 static bool gyro_capture = false;
 static void update_gyro_capture() {
     const bool want = tv && motion::mouse_drives_gyro() && !overlay::captures() && SDL_GetKeyboardFocus() == tv &&
-                      !getenv("WWHD_NO_HOST_INPUT");
+                      !getenv("TPHD_NO_HOST_INPUT");
     if (want && !gyro_capture) {
         gyro_capture = true;
         if (SDL_SetWindowRelativeMouseMode(tv, true)) LOG("[gyro] mouse captured while the game aims");
@@ -26,7 +26,7 @@ static void update_gyro_capture() {
 void update_mouse() { update_gyro_capture(); }
 bool handle_mouse_event(const SDL_Event& event) {
     update_mouse();
-    if (!tv || getenv("WWHD_NO_HOST_INPUT")) return false;
+    if (!tv || getenv("TPHD_NO_HOST_INPUT")) return false;
     // the mouse as a gyro: every movement in the game window (motion.h keeps it only while the game aims)
     if (event.type == SDL_EVENT_MOUSE_MOTION && event.motion.windowID == SDL_GetWindowID(tv)) {
         motion::mouse_motion(event.motion.xrel, event.motion.yrel);

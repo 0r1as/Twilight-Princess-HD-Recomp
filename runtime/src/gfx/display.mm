@@ -13,19 +13,19 @@
 // Closing the TV window (close button, Cmd+W) quits the app, asking first while a game is in progress
 // (quit_prompt.mm); closing the GamePad window only hides it.
 // The Display menu holds the rest. Choices are kept in ~/Library/Application Support/TPHD/display.plist
-// (test runs with WWHD_NO_HOST_INPUT neither read nor write it unless WWHD_DISPLAY_SETTINGS names a file).
+// (test runs with TPHD_NO_HOST_INPUT neither read nor write it unless TPHD_DISPLAY_SETTINGS names a file).
 //
 // The modes, the layout of the TV window, the automatic overlay and the overlay's touch mapping are
-// shared with the SDL host (display_modes.cpp, which lists their test variables: WWHD_DRC_MODE,
-// WWHD_DRC_PIP, WWHD_SCALE_FILTER, WWHD_SIM_SCREEN, WWHD_TEST_TOUCH, WWHD_DRC_AUTO, WWHD_DRC_AUTO_LOG).
+// shared with the SDL host (display_modes.cpp, which lists their test variables: TPHD_DRC_MODE,
+// TPHD_DRC_PIP, TPHD_SCALE_FILTER, TPHD_SIM_SCREEN, TPHD_TEST_TOUCH, TPHD_DRC_AUTO, TPHD_DRC_AUTO_LOG).
 //
 // Debug / test environment:
-//   WWHD_FULLSCREEN=0|1                  TV window starts windowed / in full screen instead of as it was left
+//   TPHD_FULLSCREEN=0|1                  TV window starts windowed / in full screen instead of as it was left
 //                                        (that session's full screen is not saved; 1 takes over the screen!)
-//   WWHD_DUMP_PRESENT=1                  with WWHD_DUMP_FRAMES: also write frame_<n>_present.png (the composed
+//   TPHD_DUMP_PRESENT=1                  with TPHD_DUMP_FRAMES: also write frame_<n>_present.png (the composed
 //                                        TV window) and frame_<n>_present_drc.png (GamePad window, window mode)
-//   WWHD_TEST_DRC_KEY=3500,3700          frames at which Cmd+G (show/hide GamePad screen) is simulated
-//   WWHD_HIDDEN_WINDOWS=1                test runs: the windows are never put on screen (nothing pops up;
+//   TPHD_TEST_DRC_KEY=3500,3700          frames at which Cmd+G (show/hide GamePad screen) is simulated
+//   TPHD_HIDDEN_WINDOWS=1                test runs: the windows are never put on screen (nothing pops up;
 //                                        frame / present dumps still work, the drawables are not presented)
 #import <AppKit/AppKit.h>
 #import <QuartzCore/QuartzCore.h>
@@ -47,7 +47,7 @@
 #include "renderer.h"
 #include "runtime.h"
 #include "../interp.h"
-#ifdef WWHD_HAS_VULKAN
+#ifdef TPHD_HAS_VULKAN
 #include "vulkan/api.h"
 #endif
 #include "imgui.h"
@@ -69,15 +69,15 @@ static int find_name(const char* const* names, int n, NSString* s, int def) {
     return find_name(names, n, [s isKindOfClass:[NSString class]] ? s.UTF8String : nullptr, def);
 }
 static bool hidden_windows() {
-    static const bool h = [] { const char* e = getenv("WWHD_HIDDEN_WINDOWS"); return e && *e && strcmp(e, "0"); }();
+    static const bool h = [] { const char* e = getenv("TPHD_HIDDEN_WINDOWS"); return e && *e && strcmp(e, "0"); }();
     return h;
 }
 
 // ---------------------------------------------------------------- settings file
 static NSMutableDictionary* g_settings;
 static NSString* settings_path() {
-    if (const char* e = getenv("WWHD_DISPLAY_SETTINGS")) return @(e);
-    if (getenv("WWHD_NO_HOST_INPUT")) return nil;  // test runs leave the user's choices alone
+    if (const char* e = getenv("TPHD_DISPLAY_SETTINGS")) return @(e);
+    if (getenv("TPHD_NO_HOST_INPUT")) return nil;  // test runs leave the user's choices alone
     return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/TPHD/display.plist"];
 }
 static void load_settings() {
@@ -248,7 +248,7 @@ static void screen_changed(int i) {
         Screen& scr = i ? R.drc : R.tv;
         scr.visible = screen_visible(win);
     }
-#ifdef WWHD_HAS_VULKAN
+#ifdef TPHD_HAS_VULKAN
     else gfxvk::screen_changed(i, screen_visible(win));
 #endif
 }
@@ -330,7 +330,7 @@ static void apply_drc_window() {
         // never takes the keyboard; test runs stay behind the user's windows
         if (hidden_windows()) return;
         if (!g_drc_window.visible) {
-            if (getenv("WWHD_NO_HOST_INPUT")) [g_drc_window orderBack:nil];
+            if (getenv("TPHD_NO_HOST_INPUT")) [g_drc_window orderBack:nil];
             else [g_drc_window orderFront:nil];
         }
     } else if (g_drc_window.visible) {
@@ -422,9 +422,9 @@ static void create_windows() {
         beginActivityWithOptions:NSActivityUserInitiated | NSActivityLatencyCritical | NSActivityIdleDisplaySleepDisabled
                           reason:@"game running"];
     (void)activity;
-    // scripted test runs (WWHD_NO_HOST_INPUT) run as a background app: no Dock icon, never takes the
+    // scripted test runs (TPHD_NO_HOST_INPUT) run as a background app: no Dock icon, never takes the
     // keyboard focus from the user's game
-    bool test = getenv("WWHD_NO_HOST_INPUT") != nullptr;
+    bool test = getenv("TPHD_NO_HOST_INPUT") != nullptr;
     [NSApp setActivationPolicy:test ? NSApplicationActivationPolicyAccessory : NSApplicationActivationPolicyRegular];
     set_dock_icon();
     load_settings();
@@ -437,9 +437,9 @@ static void create_windows() {
     NSRect saved = NSRectFromString(g_settings[@"tvFrame"] ?: @"");
     if (frame_usable(saved)) [tv setFrame:saved display:NO];
     else [tv center];
-    // full screen as left (a WWHD_FULLSCREEN start leaves the saved state alone)
+    // full screen as left (a TPHD_FULLSCREEN start leaves the saved state alone)
     track_window(tv, &g_tv_normal_frame, @"tvFrame", display_fullscreen_env() ? nil : @"tvFullScreen");
-    if (!getenv("WWHD_NO_GAMEPAD")) {
+    if (!getenv("TPHD_NO_GAMEPAD")) {
         // GamePad screen to the right of the TV window (or where it was last)
         NSRect f = tv.frame;
         NSWindow* drc = make_window(1, @"GamePad", [[WWDrcView alloc] initWithFrame:NSMakeRect(0, 0, 427, 240)], 427, 240,
@@ -493,14 +493,14 @@ static void create_windows() {
             hidden = true;
         }
     }];
-    // debug: WWHD_TEST_DRC_MODE (display_modes.cpp) switches the mode as the Display menu does
-    if (getenv("WWHD_TEST_DRC_MODE"))
+    // debug: TPHD_TEST_DRC_MODE (display_modes.cpp) switches the mode as the Display menu does
+    if (getenv("TPHD_TEST_DRC_MODE"))
         [NSTimer scheduledTimerWithTimeInterval:1.0 / 120 repeats:YES block:^(NSTimer*) {
             const int m = display_test_mode(render::frame_count());
             if (m >= 0) set_drc_mode(m);
         }];
     // debug: simulated Cmd+G presses
-    if (const char* e = getenv("WWHD_TEST_DRC_KEY")) {
+    if (const char* e = getenv("TPHD_TEST_DRC_KEY")) {
         static std::vector<uint64_t> frames;
         for (const char* p = e; *p;) {
             frames.push_back(strtoull(p, (char**)&p, 10));
@@ -649,7 +649,7 @@ void display_attach_vulkan(void** tv, void** drc) {
 }
 // after the Vulkan renderer started: windows that are never shown get no presentation
 void display_vulkan_started() {
-#ifdef WWHD_HAS_VULKAN
+#ifdef TPHD_HAS_VULKAN
     if (hidden_windows())
         for (int i = 0; i < 2; i++) gfxvk::screen_changed(i, false);
 #endif
@@ -674,19 +674,19 @@ void run_appkit_loop() {
         fflush(stderr);
         std::_Exit(0);
     }];
-    // test runs: WWHD_EXIT_AT_FRAME=n quits (orderly) once the renderer reached frame n
-    if (const char* e = getenv("WWHD_EXIT_AT_FRAME")) {
+    // test runs: TPHD_EXIT_AT_FRAME=n quits (orderly) once the renderer reached frame n
+    if (const char* e = getenv("TPHD_EXIT_AT_FRAME")) {
         uint64_t at = strtoull(e, nullptr, 10);
         if (at)
             [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer* t) {
                 if (render::frame_count() < at) return;
                 [t invalidate];
-                LOG("[display] WWHD_EXIT_AT_FRAME: quitting at frame %llu", (unsigned long long)render::frame_count());
+                LOG("[display] TPHD_EXIT_AT_FRAME: quitting at frame %llu", (unsigned long long)render::frame_count());
                 [NSApp terminate:nil];
             }];
     }
-    // test runs: WWHD_TEST_RENDERER_SWITCH=frame:metal|vulkan does what Graphics > Renderer > Restart Now does
-    if (const char* e = getenv("WWHD_TEST_RENDERER_SWITCH")) {
+    // test runs: TPHD_TEST_RENDERER_SWITCH=frame:metal|vulkan does what Graphics > Renderer > Restart Now does
+    if (const char* e = getenv("TPHD_TEST_RENDERER_SWITCH")) {
         uint64_t at = strtoull(e, nullptr, 10);
         const char* c = strchr(e, ':');
         render::Api a = c && !strcasecmp(c + 1, "vulkan") ? render::Api::Vulkan : render::Api::Metal;
@@ -694,7 +694,7 @@ void run_appkit_loop() {
             if (render::frame_count() < at) return;
             [t invalidate];
             LOG("[display] test: renderer %s, restart at frame %llu", render::api_name(a), (unsigned long long)render::frame_count());
-            unsetenv("WWHD_TEST_RENDERER_SWITCH");  // once
+            unsetenv("TPHD_TEST_RENDERER_SWITCH");  // once
             render::set_preferred(a);
             render::restart();
         }];
@@ -705,7 +705,7 @@ void run_appkit_loop() {
 // a message on the TV window that does not stop the game (renderer fallback); test runs only log it
 void show_startup_notice(const std::string& title, const std::string& text) {
     LOG("[display] %s: %s", title.c_str(), text.c_str());
-    if (getenv("WWHD_NO_HOST_INPUT")) return;
+    if (getenv("TPHD_NO_HOST_INPUT")) return;
     NSString* t = @(title.c_str()), *m = @(text.c_str());
     dispatch_async(dispatch_get_main_queue(), ^{
         NSAlert* a = [NSAlert new];

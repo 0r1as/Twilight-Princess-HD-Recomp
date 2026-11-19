@@ -48,7 +48,7 @@ own runtime cache after playing for a while (the further you get, the more it co
     known records reproduce exactly since they carry the recorded register state; the runtime builds
     them in the background once those shaders are compiled and drops recipes whose shaders it lacks
   - type 3 records: every other archive program with up to --max states recorded for programs of the
-    same family (identical shader register block). Speculative; only `wwhd --warm-shaders` uses them,
+    same family (identical shader register block). Speculative; only `tphd --warm-shaders` uses them,
     compiling everything once so the macOS Metal shader cache already has the code later.
 """
 import collections

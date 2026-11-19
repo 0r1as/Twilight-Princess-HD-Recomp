@@ -66,9 +66,9 @@ void count_vpad_read() { g_vpad_reads++; }
 // a guest thread, once per logic step (main01's frame loop, interp.cpp)
 void service(Cpu* c) {
     // the game's controller choice (pad_choice.h): the keyboard and host controllers act as that one, and the
-    // GamePad screen follows (hostui::set_pro_controller); WWHD_PRO_CONTROLLER (set) keeps the Pro Controller
+    // GamePad screen follows (hostui::set_pro_controller); TPHD_PRO_CONTROLLER (set) keeps the Pro Controller
     static PadChoice choice;
-    static const char* fixed = getenv("WWHD_PRO_CONTROLLER");
+    static const char* fixed = getenv("TPHD_PRO_CONTROLLER");
     const PadChoice::Change change = choice.step(g_kpad_reads.exchange(0), g_vpad_reads.exchange(0));
     if (!fixed && change != PadChoice::kNone && (change == PadChoice::kPro) != input::pro_controller()) {
         const bool pro = change == PadChoice::kPro;

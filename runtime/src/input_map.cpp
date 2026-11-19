@@ -528,8 +528,8 @@ bool save_file(const std::string& path, const Mapping& m) {
 }
 
 std::string default_path() {
-    // WWHD_CONTROLS=<file> uses another controls file (tests)
-    if (const char* e = getenv("WWHD_CONTROLS"); e && *e) return e;
+    // TPHD_CONTROLS=<file> uses another controls file (tests)
+    if (const char* e = getenv("TPHD_CONTROLS"); e && *e) return e;
     return host::config_dir() + "/controls.json";
 }
 

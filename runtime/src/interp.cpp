@@ -35,8 +35,8 @@
 namespace interp {
 
 static int valid_fps(int f) { return f >= 240 ? 240 : f >= 120 ? 120 : 60; }
-static const int g_env_fps = getenv("WWHD_INTERP_FPS") ? valid_fps(atoi(getenv("WWHD_INTERP_FPS"))) : 0;
-static std::atomic<bool> g_on{getenv("WWHD_INTERP") ? atoi(getenv("WWHD_INTERP")) == 1 : g_env_fps != 0};
+static const int g_env_fps = getenv("TPHD_INTERP_FPS") ? valid_fps(atoi(getenv("TPHD_INTERP_FPS"))) : 0;
+static std::atomic<bool> g_on{getenv("TPHD_INTERP") ? atoi(getenv("TPHD_INTERP")) == 1 : g_env_fps != 0};
 static std::atomic<int> g_fps{g_env_fps ? g_env_fps : 60};
 bool g_hold = false;            // this pass only draws (main thread)
 static int g_phase = 0, g_n = 0;    // this pass in its step: 0 logic, k = hold pass k of g_n
@@ -72,8 +72,8 @@ bool paced_interpolation_at(int) { return false; }
 void set_paced_interpolation_at(int, bool) {}
 float paced_drawn_share() { return -1; }
 
-// the display: refresh rate of the TV window's screen (0 = unknown; WWHD_DISPLAY_HZ=n overrides)
-static const int g_env_hz = getenv("WWHD_DISPLAY_HZ") ? atoi(getenv("WWHD_DISPLAY_HZ")) : -1;
+// the display: refresh rate of the TV window's screen (0 = unknown; TPHD_DISPLAY_HZ=n overrides)
+static const int g_env_hz = getenv("TPHD_DISPLAY_HZ") ? atoi(getenv("TPHD_DISPLAY_HZ")) : -1;
 static std::atomic<int> g_display_hz{0};
 int display_hz() { return g_env_hz >= 0 ? g_env_hz : g_display_hz.load(std::memory_order_relaxed); }
 void set_display_hz(int hz) {
@@ -473,7 +473,7 @@ static uint32_t alpha_at(uint32_t pane) {
 }
 
 void interp::blend_pane(uint32_t pane, std::vector<std::pair<uint32_t, uint32_t>>& saved) {
-    static const bool off = getenv("WWHD_INTERP_PANES") && !strcmp(getenv("WWHD_INTERP_PANES"), "0");  // debug: 2D at 30 Hz
+    static const bool off = getenv("TPHD_INTERP_PANES") && !strcmp(getenv("TPHD_INTERP_PANES"), "0");  // debug: 2D at 30 Hz
     if (!g_on || off) return;
     if (!g_hold) {
         PanePrev& p = g_panes[pane];
@@ -516,7 +516,7 @@ void interp::blend_pane(uint32_t pane, std::vector<std::pair<uint32_t, uint32_t>
 // Advanced on hold passes too, it ran twice as fast at 60 fps. On a logic pass the counter's value before the draw
 // is kept; a hold pass draws from that value again, so it shows the step's frame (30 Hz, as the rest of 2D
 // animation) and leaves the counter where the logic pass left it. All the letters' lights draw the same panes, so
-// blend_pane leaves panes drawn more than once in a pass alone (blending them flickered). WWHD_INTERP_PANES=0
+// blend_pane leaves panes drawn more than once in a pass alone (blending them flickered). TPHD_INTERP_PANES=0
 // (debug) turns the pane blending off.
 namespace {
 struct LightPrev { uint64_t pass = 0; uint32_t before = 0; };

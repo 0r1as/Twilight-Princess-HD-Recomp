@@ -4,7 +4,7 @@
 # Quest Log 1 through the menus. ROUTE=qasave (default, routes/qasave.txt): shots on arrival (69 s), after a walk
 # (75 s) and in Collection (81 s); ROUTE=map (routes/map.txt): the same shot times, with the map open at 75 and 81 s. ROUTE=play (routes/play.txt): 2.5 minutes of fixed pseudo-random play; four
 # consecutive TV frames at 90, 130, 170 and 210 s, and "alt" counts the groups whose frames alternate (one frame of
-# each pair differs much more than the other: something drawn differently on hold passes; run with WWHD_INTERP=1).
+# each pair differs much more than the other: something drawn differently on hold passes; run with TPHD_INTERP=1).
 # Output in build/audit/qasaves/: <save>_a/_b/_c.png (play: <save>_b.png, the 130 s frame), <save>.log, summary.tsv
 # (save, the save's place, the stage reached, alive, crash, unimplemented calls, brightness of the b shot, alt) and
 # sheet.png (the b shots).

@@ -1,5 +1,5 @@
-# The horror mod's events (WWHD_HORROR=<event>@<frame>): the menus of routes/qasave.txt load Quest Log 1 (in play by
-# about 66 s), WWHD_WARP takes Link to Hyrule Field, and he stands there, turning the camera now and then so the
+# The horror mod's events (TPHD_HORROR=<event>@<frame>): the menus of routes/qasave.txt load Quest Log 1 (in play by
+# about 66 s), TPHD_WARP takes Link to Hyrule Field, and he stands there, turning the camera now and then so the
 # shots look around him.
 20-20.3 PLUS
 25-25.3 PLUS

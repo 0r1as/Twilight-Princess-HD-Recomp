@@ -25,8 +25,8 @@ void display_init();
 void present_screens();
 void request_present_dump(const std::string& path);
 
-// enhancement, toggled in game (Graphics menu or 8; WWHD_FXAA=1 starts with it on)
-static std::atomic<bool> g_fxaa{[] { const char* e = getenv("WWHD_FXAA"); return e && atoi(e) != 0; }()};
+// enhancement, toggled in game (Graphics menu or 8; TPHD_FXAA=1 starts with it on)
+static std::atomic<bool> g_fxaa{[] { const char* e = getenv("TPHD_FXAA"); return e && atoi(e) != 0; }()};
 bool fxaa_enabled() { return g_fxaa.load(std::memory_order_relaxed); }
 void set_fxaa(bool v) { g_fxaa = v; LOG("[gfx] edge smoothing (FXAA) %s", v ? "on" : "off"); }
 
@@ -72,7 +72,7 @@ void end_encoder() {
         R.enc = nil;
         // submit work in chunks so the GPU starts while the frame is still being built (like the
         // hardware command processor), instead of all at once on swap
-        static const bool chunked = getenv("WWHD_NO_CHUNK") == nullptr;
+        static const bool chunked = getenv("TPHD_NO_CHUNK") == nullptr;
         if (chunked && g_draws_since_commit >= 256 && R.cmd) {
             void pool_retire(id<MTLCommandBuffer> cmd);
             pool_retire(R.cmd);
@@ -260,10 +260,10 @@ void peek_z(const uint32_t* p, uint32_t n) {
     }];
 }
 
-// debug: WWHD_DUMP_FRAMES=100,300 writes the TV image of those frames to frame_<n>.png
+// debug: TPHD_DUMP_FRAMES=100,300 writes the TV image of those frames to frame_<n>.png
 static std::set<uint64_t> g_dump_frames = [] {
     std::set<uint64_t> f;
-    if (const char* e = getenv("WWHD_DUMP_FRAMES"))
+    if (const char* e = getenv("TPHD_DUMP_FRAMES"))
         for (const char* p = e; *p;) {
             f.insert(strtoull(p, (char**)&p, 10));
             while (*p == ',') p++;
@@ -432,7 +432,7 @@ static void dump_tv(uint64_t frame) {
         snprintf(name, sizeof name, "frame_%llu_drc.png", (unsigned long long)frame);
         dump_texture(R.drc.tex, name, true, R.drc.srgb);
     }
-    static const bool present = getenv("WWHD_DUMP_PRESENT") != nullptr;
+    static const bool present = getenv("TPHD_DUMP_PRESENT") != nullptr;
     if (present) {
         snprintf(name, sizeof name, "frame_%llu_present.png", (unsigned long long)frame);
         request_present_dump(name);
@@ -452,7 +452,7 @@ void cache_warm_step();
 
 void swap() {
     cache_warm_step();
-    static bool sync_gpu = getenv("WWHD_SYNC_GPU") != nullptr;  // debug: no CPU/GPU overlap
+    static bool sync_gpu = getenv("TPHD_SYNC_GPU") != nullptr;  // debug: no CPU/GPU overlap
     if (sync_gpu) wait_idle();
     end_encoder();
     if (log_this_frame()) LOG("[frame] end %llu", (unsigned long long)R.frame);
@@ -493,7 +493,7 @@ extern uint64_t g_stat_invalidates, g_stat_invalidated_surfaces;
 void invalidate(uint32_t flags, uint32_t addr, uint32_t size) {
     g_stat_invalidates++;
     static int logged = 0;
-    if (getenv("WWHD_LOG_INVALIDATE") && (flags & 0x2) && logged++ < 400)
+    if (getenv("TPHD_LOG_INVALIDATE") && (flags & 0x2) && logged++ < 400)
         LOG("[inval] frame %llu flags %X addr %08X size %X", (unsigned long long)R.frame, flags, addr, size);
     // GX2_INVALIDATE_MODE_TEXTURE (0x2): the CPU wrote texture data; force a full check of surfaces in
     // range on next use. Uniform/attribute/shader invalidations need nothing here.
@@ -516,7 +516,7 @@ void invalidate(uint32_t flags, uint32_t addr, uint32_t size) {
             s->dirty = true;
             g_stat_invalidated_surfaces++;
             static int lg = 0;
-            if (getenv("WWHD_LOG_INVALIDATE") && lg++ < 300)
+            if (getenv("TPHD_LOG_INVALIDATE") && lg++ < 300)
                 LOG("[inval]   marks %08X %ux%u fmt %X size %X (range %08X+%X)", a, s->width, s->height, s->format, s->dataSize, addr, size);
         }
 }

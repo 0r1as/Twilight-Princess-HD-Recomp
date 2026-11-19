@@ -27,7 +27,7 @@ const std::vector<Variant>& variants();
 // The variant for a console language and a region code ("" or unknown: the language's own region)
 const Variant& choose(int language, const std::string& region);
 
-// The variant this start runs with: WWHD_LANGUAGE (and WWHD_LANGUAGE_REGION), else the settings overlay's
+// The variant this start runs with: TPHD_LANGUAGE (and TPHD_LANGUAGE_REGION), else the settings overlay's
 // saved choice (hostui "language", "language_region"), else English (North America). Decided once.
 const Variant& current();
 

@@ -34,7 +34,7 @@ constexpr uint32_t kAreaSize = 0xD8;
 
 struct Info {
     const char* name;
-    const char* key;  // file names, WWHD_AMIIBO
+    const char* key;  // file names, TPHD_AMIIBO
     uint8_t character[3];  // game+character ID, variant
 };
 const Info kInfo[amiibo::kFigures] = {
@@ -89,12 +89,12 @@ int on_reader() {
     return g_figure;
 }
 void service() {
-    static const char* e = getenv("WWHD_AMIIBO");  // the next tap; null when none is left
+    static const char* e = getenv("TPHD_AMIIBO");  // the next tap; null when none is left
     if (!e || !*e) return;
     char key[16];
     unsigned long long at;
     if (sscanf(e, "%15[^@]@%llu", key, &at) != 2) {
-        LOG("[nfp] WWHD_AMIIBO: expected <figure>@<frame>[,...]");
+        LOG("[nfp] TPHD_AMIIBO: expected <figure>@<frame>[,...]");
         e = nullptr;
         return;
     }
@@ -103,7 +103,7 @@ void service() {
     e = next ? next + 1 : nullptr;
     for (int f = 0; f < kFigures; f++)
         if (!strcmp(key, kInfo[f].key)) return tap(f);
-    LOG("[nfp] WWHD_AMIIBO: no figure %s (wolf_link, link, zelda, ganondorf)", key);
+    LOG("[nfp] TPHD_AMIIBO: no figure %s (wolf_link, link, zelda, ganondorf)", key);
 }
 }  // namespace amiibo
 

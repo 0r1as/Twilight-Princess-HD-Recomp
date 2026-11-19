@@ -205,7 +205,7 @@ void report_done(int slot, bool ok, const std::string& why) {
 std::string state_dir() {
     static const std::string dir = [] {
         std::string d;
-        if (const char* e = getenv("WWHD_STATE_DIR")) d = e;
+        if (const char* e = getenv("TPHD_STATE_DIR")) d = e;
         else d=host::config_dir()+"/states";
         std::error_code ec; std::filesystem::create_directories(d,ec);
         return d;
@@ -624,7 +624,7 @@ bool do_load(const std::shared_ptr<Snapshot>& s) {
     return true;
 }
 
-// test aid: WWHD_STATE_SAVE_AT=frame:slot,...  WWHD_STATE_LOAD_AT=frame:slot,... (TV frames)
+// test aid: TPHD_STATE_SAVE_AT=frame:slot,...  TPHD_STATE_LOAD_AT=frame:slot,... (TV frames)
 struct Timed { uint64_t frame; int slot; };
 std::vector<Timed> parse_timed(const char* var) {
     std::vector<Timed> v;
@@ -753,9 +753,9 @@ std::string states_dir() { return state_dir(); }
 
 void service(Cpu* c) {
     crashrec::service();
-    // debug: WWHD_ALLOC_LOG_AT=<TV frame> logs every runtime object in guest memory (address, size, allocating code
+    // debug: TPHD_ALLOC_LOG_AT=<TV frame> logs every runtime object in guest memory (address, size, allocating code
     // as an offset in the executable) once, to compare the layouts of two sessions
-    static const uint64_t alloc_log_at = getenv("WWHD_ALLOC_LOG_AT") ? strtoull(getenv("WWHD_ALLOC_LOG_AT"), nullptr, 10) : 0;
+    static const uint64_t alloc_log_at = getenv("TPHD_ALLOC_LOG_AT") ? strtoull(getenv("TPHD_ALLOC_LOG_AT"), nullptr, 10) : 0;
     if (alloc_log_at && render::frame_count() >= alloc_log_at) {
         static bool done = false;
         if (!done) {
@@ -766,8 +766,8 @@ void service(Cpu* c) {
                 LOG("[alloclog] #%zu %08X+%X %#llx", i, log[i].addr, log[i].size, (unsigned long long)log[i].tag);
         }
     }
-    // test aids (TV frames): WWHD_STATE_SAVE_AT / WWHD_STATE_LOAD_AT
-    static const std::vector<Timed> save_at = parse_timed("WWHD_STATE_SAVE_AT"), load_at = parse_timed("WWHD_STATE_LOAD_AT");
+    // test aids (TV frames): TPHD_STATE_SAVE_AT / TPHD_STATE_LOAD_AT
+    static const std::vector<Timed> save_at = parse_timed("TPHD_STATE_SAVE_AT"), load_at = parse_timed("TPHD_STATE_LOAD_AT");
     if (!save_at.empty() || !load_at.empty()) {
         static uint64_t last = 0;
         uint64_t f = render::frame_count();
@@ -777,8 +777,8 @@ void service(Cpu* c) {
             if (t.frame > last && t.frame <= f) request_load(t.slot);
         last = f;
     }
-    // test aid: WWHD_STATE_DUMP=n dumps the n TV frames after each save/load (state_<save|load><slot>_<k>.png)
-    static const int dump = getenv("WWHD_STATE_DUMP") ? atoi(getenv("WWHD_STATE_DUMP")) : 0;
+    // test aid: TPHD_STATE_DUMP=n dumps the n TV frames after each save/load (state_<save|load><slot>_<k>.png)
+    static const int dump = getenv("TPHD_STATE_DUMP") ? atoi(getenv("TPHD_STATE_DUMP")) : 0;
     if (int slot = g_save_req.load()) {
         if (do_save(slot)) {
             g_save_req = 0;

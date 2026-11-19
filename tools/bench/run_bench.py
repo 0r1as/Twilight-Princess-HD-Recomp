@@ -8,13 +8,13 @@ input. One game process at a time; it is stopped with TERM, then KILL, and check
 
 Example (two variants, interleaved A B B A ..., 6 runs each, 60 fps interpolation, Metal):
 
-  tools/bench/run_bench.py --binary build/cmake-tphd/wwhd --state-dir build/audit/states --scene ordon \\
-      --fps 60 --runs 6 --out build/bench/sharp --variant base: --variant sharp:WWHD_SHARPNESS=sharpest
+  tools/bench/run_bench.py --binary build/cmake-tphd/tphd --state-dir build/audit/states --scene ordon \\
+      --fps 60 --runs 6 --out build/bench/sharp --variant base: --variant sharp:TPHD_SHARPNESS=sharpest
 
 Scenes (input is timed in game seconds from TV frame --origin, so 30 and 60 fps runs see the same
 input): ordon = walk and look around near Link's house (state slot 1 by default: first control, as
 tools/audit's), river = turn the camera at the Ordon river (slot 3), still = no input (any slot). The
-state file must be <state-dir>/slot<N>.bin (WWHD_STATE_SAVE_AT, or the game's own save-state keys).
+state file must be <state-dir>/slot<N>.bin (TPHD_STATE_SAVE_AT, or the game's own save-state keys).
 """
 import argparse
 import csv
@@ -39,7 +39,7 @@ SCENES = {
 
 
 def other_games(own_pid=None):
-    """Running game executables (wwhd*) other than own_pid: the executable name, not the arguments
+    """Running game executables (tphd*) other than own_pid: the executable name, not the arguments
     (this script itself is started with --game)."""
     try:
         out = subprocess.run(["ps", "-Ao", "pid=,comm="], capture_output=True, text=True).stdout
@@ -48,7 +48,7 @@ def other_games(own_pid=None):
     found = []
     for line in out.splitlines():
         pid, _, comm = line.strip().partition(" ")
-        if os.path.basename(comm.strip()).startswith("wwhd") and (own_pid is None or int(pid) != own_pid):
+        if os.path.basename(comm.strip()).startswith("tphd") and (own_pid is None or int(pid) != own_pid):
             found.append(line.strip()[:160])
     return found
 
@@ -159,33 +159,33 @@ def run_once(args, variant, env_extra, index, out_dir):
     load_at, origin = args.load_frame, args.origin
     cache = os.path.abspath(args.cache_dir or os.path.join(out_dir, "cache"))
     os.makedirs(cache, exist_ok=True)
-    env = {k: v for k, v in os.environ.items() if not k.startswith("WWHD_")}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("TPHD_")}
     press_from = args.press_from if args.press_from >= 0 else max(0, load_at - 300)
     presses = ",".join("%d-%d:8000" % (f, f + 8) for f in range(press_from, load_at, args.press_every))
     env.update({
-        "WWHD_NO_AUDIO": "1", "WWHD_NO_GAMEPAD": "1", "WWHD_NO_HOST_INPUT": "1",
-        "WWHD_SHADER_CACHE": os.path.join(cache, "shaders.bin"), "WWHD_VK_SHADER_CACHE": os.path.join(cache, "vkshaders"),
-        "WWHD_VK_PIPELINE_CACHE": os.path.join(cache, "vkpipelines.bin"),
-        "WWHD_DISPLAY_SETTINGS": os.path.join(run_dir, "display.plist"), "WWHD_SETTINGS": os.path.join(run_dir, "settings.ini"),
+        "TPHD_NO_AUDIO": "1", "TPHD_NO_GAMEPAD": "1", "TPHD_NO_HOST_INPUT": "1",
+        "TPHD_SHADER_CACHE": os.path.join(cache, "shaders.bin"), "TPHD_VK_SHADER_CACHE": os.path.join(cache, "vkshaders"),
+        "TPHD_VK_PIPELINE_CACHE": os.path.join(cache, "vkpipelines.bin"),
+        "TPHD_DISPLAY_SETTINGS": os.path.join(run_dir, "display.plist"), "TPHD_SETTINGS": os.path.join(run_dir, "settings.ini"),
         "XDG_CONFIG_HOME": os.path.join(run_dir, "config"),
-        "WWHD_PRESS": presses, "WWHD_STATE_DIR": os.path.abspath(args.state_dir), "WWHD_STATE_LOAD_AT": "%d:%d" % (load_at, slot),
-        "WWHD_TEST_ORIGIN": str(origin), "WWHD_TEST_END": str(args.seconds),
-        "WWHD_RENDERER_RUNTIME": args.renderer, "WWHD_PROFILE": "1",
+        "TPHD_PRESS": presses, "TPHD_STATE_DIR": os.path.abspath(args.state_dir), "TPHD_STATE_LOAD_AT": "%d:%d" % (load_at, slot),
+        "TPHD_TEST_ORIGIN": str(origin), "TPHD_TEST_END": str(args.seconds),
+        "TPHD_RENDERER_RUNTIME": args.renderer, "TPHD_PROFILE": "1",
     })
     if not args.visible:
-        env["WWHD_HIDDEN_WINDOWS"] = "1"  # nothing pops up, but nothing is presented either
+        env["TPHD_HIDDEN_WINDOWS"] = "1"  # nothing pops up, but nothing is presented either
     if stick:
-        env["WWHD_TEST_STICK"] = stick
+        env["TPHD_TEST_STICK"] = stick
     if rstick:
-        env["WWHD_TEST_RSTICK"] = rstick
+        env["TPHD_TEST_RSTICK"] = rstick
     if args.renderer == "vulkan":
-        env["WWHD_VK_CPU_ONLY_STATS"] = "1"
+        env["TPHD_VK_CPU_ONLY_STATS"] = "1"
     if args.fps != "30":
-        env["WWHD_INTERP"], env["WWHD_INTERP_FPS"] = "1", args.fps
+        env["TPHD_INTERP"], env["TPHD_INTERP_FPS"] = "1", args.fps
     if args.display_hz is not None:
-        env["WWHD_DISPLAY_HZ"] = str(args.display_hz)
+        env["TPHD_DISPLAY_HZ"] = str(args.display_hz)
     if args.uncapped:
-        env["WWHD_VK_UNCAPPED"] = "1"
+        env["TPHD_VK_UNCAPPED"] = "1"
     env.update(env_extra)
     if args.gate:
         subprocess.run(args.gate, shell=True, check=False)  # e.g. wait for another benchmark to finish
@@ -240,19 +240,19 @@ def run_once(args, variant, env_extra, index, out_dir):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--binary", required=True, help="game executable (wwhd)")
+    p.add_argument("--binary", required=True, help="game executable (tphd)")
     p.add_argument("--game", default=os.path.join(REPO, "game"), help="extracted game folder (default: <repo>/game)")
     p.add_argument("--save", default=os.path.join(REPO, "save"), help="save folder, copied for every run (default: <repo>/save)")
     p.add_argument("--state-dir", required=True, help="folder with slot<N>.bin save states (read only)")
     p.add_argument("--scene", choices=sorted(SCENES), default="ordon")
     p.add_argument("--slot", type=int, default=0, help="state slot (default: the scene's)")
     p.add_argument("--fps", choices=["30", "60", "120", "240"], default="30", help="60, 120, 240 = frame interpolation")
-    p.add_argument("--display-hz", type=int, help="WWHD_DISPLAY_HZ: the display refresh rate frame interpolation is "
+    p.add_argument("--display-hz", type=int, help="TPHD_DISPLAY_HZ: the display refresh rate frame interpolation is "
                    "capped to (0: no cap; default: the detected one, e.g. 120 on a ProMotion Mac)")
     p.add_argument("--renderer", choices=["metal", "vulkan"], default="metal")
     p.add_argument("--visible", action="store_true",
                    help="show the game windows (presentation, swapchain and vsync pacing are only exercised then)")
-    p.add_argument("--uncapped", action="store_true", help="WWHD_VK_UNCAPPED=1: throughput, not gameplay pacing")
+    p.add_argument("--uncapped", action="store_true", help="TPHD_VK_UNCAPPED=1: throughput, not gameplay pacing")
     p.add_argument("--seconds", type=float, default=60, help="scenario length in game seconds after --origin")
     # the state load restores the whole game state; it takes only when the boot's threads wait where the saved
     # ones did, so early (TV frame 60, as tools/audit/run_route.sh) and retried (below) when it doesn't

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Usage: tools/audit/bosses.sh [boss regex, default all]
 # Loads the disc's QA save with the items that boss needs (iron boots, clawshot, ... from the dungeon's own saves), warps into
-# the boss room (WWHD_WARP, 60 fps, 1x whatever the saved settings say) and plays routes/bossplay.txt there (qasaves.sh ROUTE=play's random play, 9 s
+# the boss room (TPHD_WARP, 60 fps, 1x whatever the saved settings say) and plays routes/bossplay.txt there (qasaves.sh ROUTE=play's random play, 9 s
 # after the warp). Shots, in seconds after the warp: single frames through the fight and four consecutive TV frames at
 # 40, 70, 100 and 130 s ("alt" counts the groups whose frames alternate, as in qasaves.sh).
 # Output in build/audit/bosses/ (OUT=<dir>): <boss>_<t>.png, <boss>.log, summary.tsv (boss, stage, alive, crash, unimplemented, alt)
@@ -28,7 +28,7 @@ for B in $BOSSES; do
   [[ $N =~ $FILTER ]] || continue
   F=$ROOT/game/content/DebugSaves/QASaves/$Q.dat; [[ $Q == Hero* ]] && F=$ROOT/game/content/DebugSaves/QASaves/HeroMode/ZTP${Q#Hero}.dat
   S=$ROOT/build/audit/saves/qasave; rm -rf "$S"; mkdir -p "$S/user"; cp "$F" "$S/user/ZTP00.dat"
-  R=$(SAVE=qasave WWHD_INTERP=1 WWHD_RES_SCALE=${WWHD_RES_SCALE:-1} WWHD_WARP="$((WARP * 60 + 1)):$W" SHOT_W=960 "$ROOT/tools/audit/run_route.sh" "$ROOT/tools/audit/routes/$ROUTE.txt" $((WARP + 170)) "${SHOTS[@]}" < /dev/null 2>&1)
+  R=$(SAVE=qasave TPHD_INTERP=1 TPHD_RES_SCALE=${TPHD_RES_SCALE:-1} TPHD_WARP="$((WARP * 60 + 1)):$W" SHOT_W=960 "$ROOT/tools/audit/run_route.sh" "$ROOT/tools/audit/routes/$ROUTE.txt" $((WARP + 170)) "${SHOTS[@]}" < /dev/null 2>&1)
   D=$ROOT/build/audit/$ROUTE
   cp "$D/log.txt" "$OUT/$N.log"
   for T in "${SHOTS[@]:0:${#SINGLES[@]}}"; do [ -f "$D/t$T.png" ] && cp "$D/t$T.png" "$OUT/${N}_$((T - WARP)).png"; done

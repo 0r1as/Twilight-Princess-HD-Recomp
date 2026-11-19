@@ -114,7 +114,7 @@ int main(){
   graphicsEvent(code,game,true);graphicsEvent(code,game,false,SDL_EVENT_KEY_UP);graphicsEvent(code,controls);graphicsEvent(code,game,false,SDL_EVENT_KEY_DOWN,SDL_KMOD_CTRL);assert(graphicsRequests==before+1);
  }
  assert(graphicsKey=='6');input::release_keys();
- set_env("WWHD_NO_HOST_INPUT","1");graphicsEvent(SDL_SCANCODE_R,game);assert(graphicsRequests==4);set_env("WWHD_NO_HOST_INPUT",nullptr);
+ set_env("TPHD_NO_HOST_INPUT","1");graphicsEvent(SDL_SCANCODE_R,game);assert(graphicsRequests==4);set_env("TPHD_NO_HOST_INPUT",nullptr);
  // debugging captures: F12 or Ctrl+P (Cmd+P on macOS) a frame, 9 three seconds of sound; the game window only,
  // never on a repeat, and other modifiers leave the keys alone
 #ifdef __APPLE__

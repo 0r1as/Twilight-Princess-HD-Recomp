@@ -38,10 +38,10 @@ using namespace Latte;
 namespace gfx {
 static float bitsf_(uint32_t u) { float f; memcpy(&f, &u, 4); return f; }
 
-// debug: WWHD_LOG_FRAME=n or n-m logs every draw of those frames
+// debug: TPHD_LOG_FRAME=n or n-m logs every draw of those frames
 static uint64_t g_log_frame = ~0ull, g_log_frame_end = 0;
 static bool g_log_init = [] {
-    if (const char* e = getenv("WWHD_LOG_FRAME")) {
+    if (const char* e = getenv("TPHD_LOG_FRAME")) {
         g_log_frame = strtoull(e, (char**)&e, 10);
         g_log_frame_end = *e == '-' ? strtoull(e + 1, nullptr, 10) : g_log_frame;
     }
@@ -71,7 +71,7 @@ static void dlog(const char* fmt, ...) {
 // called from swap() after R.frame advanced; returns the capture directory when this frame is captured
 const char* capture_begin_frame() {
     if (g_capture_log) { fclose(g_capture_log); g_capture_log = nullptr; }
-    static uint64_t envFrame = getenv("WWHD_CAPTURE") ? strtoull(getenv("WWHD_CAPTURE"), nullptr, 10) : ~0ull;  // scripted F12
+    static uint64_t envFrame = getenv("TPHD_CAPTURE") ? strtoull(getenv("TPHD_CAPTURE"), nullptr, 10) : ~0ull;  // scripted F12
     if (!g_capture_requested.exchange(false) && R.frame != envFrame) return nullptr;
     char dir[64];
     time_t t = time(nullptr);
@@ -209,9 +209,9 @@ static LatteFetchShader* get_fetch_shader(const uint32_t* regs, uint64_t* keyOut
 }
 
 // ---------------------------------------------------------------- shaders
-// Shaders and pipelines compile in the background (WWHD_SYNC_SHADERS=1 waits instead); draws that
+// Shaders and pipelines compile in the background (TPHD_SYNC_SHADERS=1 waits instead); draws that
 // need one still compiling are skipped for those frames rather than stalling the game.
-static const bool g_sync_shaders = getenv("WWHD_SYNC_SHADERS") != nullptr;
+static const bool g_sync_shaders = getenv("TPHD_SYNC_SHADERS") != nullptr;
 enum CompileState { CS_PENDING, CS_READY, CS_FAILED, CS_DEFERRED };  // deferred: translated from the cache, not compiled yet
 
 // Metal's completion handlers publish results through compile_done, which wakes the render thread
@@ -243,10 +243,10 @@ struct Shader {
 // occlusion pass missing left every shadowed area black until the next launch). Failed compiles are
 // retried a few times on later frames (backoff kRetryFrames * attempts); translation errors (no
 // MSL at all) still fail at once.
-// test aid: WWHD_TEST_FAIL_COMPILES=n fails the first n attempts of every shader and pipeline compile
+// test aid: TPHD_TEST_FAIL_COMPILES=n fails the first n attempts of every shader and pipeline compile
 constexpr int kCompileAttempts = 4;
 constexpr uint64_t kRetryFrames = 30;
-static const int g_test_fail_compiles = getenv("WWHD_TEST_FAIL_COMPILES") ? atoi(getenv("WWHD_TEST_FAIL_COMPILES")) : 0;
+static const int g_test_fail_compiles = getenv("TPHD_TEST_FAIL_COMPILES") ? atoi(getenv("TPHD_TEST_FAIL_COMPILES")) : 0;
 
 // render thread: true when a failed compile with attempts left is due for its retry (schedules the
 // retry on the first call after the failure)
@@ -286,7 +286,7 @@ static void report_compile_error(const char* src, uint64_t key, NSError* err, in
 // neighbour depending on interpolation noise, which shows up as streaks in ambient occlusion.
 // Snapping 2D float-texture coordinates to the 1/256 grid makes those picks consistent again.
 static std::string snap_texcoords(const char* src) {
-    static const bool off = getenv("WWHD_NO_UV_SNAP") != nullptr;
+    static const bool off = getenv("TPHD_NO_UV_SNAP") != nullptr;
     std::string s = src;
     if (off) return s;
     // one pass each over the declarations and the sample calls (this runs on the render thread for
@@ -300,7 +300,7 @@ static std::string snap_texcoords(const char* src) {
         if (end != s.c_str() + p + strlen(kDecl) && t >= 0 && t < 32 && !strncmp(end, " [[", 3)) is2d |= 1u << t;
     }
     if (!is2d) return s;
-    // insertion points in the original text: "wwhd_snap(texN, " before float2(, ")" after its close
+    // insertion points in the original text: "tphd_snap(texN, " before float2(, ")" after its close
     std::vector<std::pair<size_t, int>> ins;  // (position, slot), slot < 0: closing paren
     uint32_t broken = 0;
     for (size_t p = s.find(kCall); p != std::string::npos; p = s.find(kCall, p + 1)) {
@@ -325,7 +325,7 @@ static std::string snap_texcoords(const char* src) {
     std::stable_sort(ins.begin(), ins.end(), [](auto& x, auto& y) { return x.first < y.first || (x.first == y.first && x.second < y.second); });
     std::string out =
         "#include <metal_stdlib>\nusing namespace metal;\n"
-        "static inline float2 wwhd_snap(texture2d<float> t, float2 uv) {\n"
+        "static inline float2 tphd_snap(texture2d<float> t, float2 uv) {\n"
         "    float2 sz = float2(t.get_width(), t.get_height()) * 256.0;\n"
         "    return rint(uv * sz) / sz;\n}\n";
     out.reserve(out.size() + s.size() + ins.size() * 16);
@@ -334,14 +334,14 @@ static std::string snap_texcoords(const char* src) {
         out.append(s, at, pos - at);
         at = pos;
         if (t < 0) out += ')';
-        else out += "wwhd_snap(tex" + std::to_string(t) + ", ";
+        else out += "tphd_snap(tex" + std::to_string(t) + ", ";
     }
     out.append(s, at, std::string::npos);
     return out;
 }
 
 // Texture sharpness (look::lod_bias): Metal samplers have no LOD bias, so a pixel shader's samples of 2D textures
-// with the LOD left to the GPU get bias(wwhd_lod[unit]), from a buffer bind_stage fills for each draw: the option's
+// with the LOD left to the GPU get bias(tphd_lod[unit]), from a buffer bind_stage fills for each draw: the option's
 // bias for mipmapped assets, 0 for everything else (the game's render targets). A change needs no recompile. The
 // sampler's own bias (SQ_TEX_SAMPLER_WORD1 LOD_BIAS) is not applied, as in Cemu's Metal renderer.
 constexpr int kLodBiasBuffer = 30;  // above a pixel shader's own buffers (support and uniform buffers, from 0)
@@ -369,8 +369,8 @@ static bool add_lod_bias(std::string& s) {
     }
     if (ins.empty()) return false;
     std::sort(ins.begin(), ins.end());
-    for (auto it = ins.rbegin(); it != ins.rend(); ++it) s.insert(it->first, ", bias(wwhd_lod[" + std::to_string(it->second) + "])");
-    s.insert(entry + strlen(kMain), "constant float* wwhd_lod [[buffer(" + std::to_string(kLodBiasBuffer) + ")]], ");
+    for (auto it = ins.rbegin(); it != ins.rend(); ++it) s.insert(it->first, ", bias(tphd_lod[" + std::to_string(it->second) + "])");
+    s.insert(entry + strlen(kMain), "constant float* tphd_lod [[buffer(" + std::to_string(kLodBiasBuffer) + ")]], ");
     return true;
 }
 
@@ -391,11 +391,11 @@ static void compile_msl(Shader* sh, const char* rawSrc, uint64_t key) {
     sh->lodBias = add_lod_bias(snapped);
     const char* src = snapped.c_str();
     NSString* source = [NSString stringWithUTF8String:src];
-    // test aid: WWHD_MSL_NONCE=<text> changes every source so the system Metal cache misses (fresh install).
+    // test aid: TPHD_MSL_NONCE=<text> changes every source so the system Metal cache misses (fresh install).
     // The entry point is renamed too: the GPU-code cache behind pipeline creation is keyed by the compiled
     // function, which a comment doesn't change.
     NSString* entry = @"main0";
-    if (const char* nonce = getenv("WWHD_MSL_NONCE")) {
+    if (const char* nonce = getenv("TPHD_MSL_NONCE")) {
         std::string name = "main0_";
         for (const char* c = nonce; *c; c++) name += isalnum((unsigned char)*c) ? *c : '_';
         entry = [NSString stringWithUTF8String:name.c_str()];
@@ -558,7 +558,7 @@ static Shader* get_shader_uncached(const uint32_t* regs, bool vertex, LatteFetch
     cache_record_shader(regs, vertex);
     double t1 = now_ms();
     g_t_decompile += t1 - t0;
-    if (getenv("WWHD_DUMP_SHADERS")) {
+    if (getenv("TPHD_DUMP_SHADERS")) {
         mkdir("shaders", 0755);
         char name[96];
         snprintf(name, sizeof name, "shaders/%s_%08X_%016llx.metal", vertex ? "vs" : "ps", addr, (unsigned long long)key);
@@ -635,7 +635,7 @@ static std::unordered_map<uint64_t, Pipeline*> g_pipelines;
 
 // Draws whose shaders or pipeline are still compiling used to be skipped, which makes objects blink
 // for a few frames after entering a new area. Instead wait for the compile, up to a per-frame budget
-// (WWHD_COMPILE_WAIT_MS, default 25; the game's frame is 33 ms and the GPU needs ~4 ms of it).
+// (TPHD_COMPILE_WAIT_MS, default 25; the game's frame is 33 ms and the GPU needs ~4 ms of it).
 // Pipelines built ahead of use (cache replay, head start) never wait.
 // Skipping is only harmless for targets the game redraws every frame. A draw into a target that is
 // new or wasn't drawn in the previous frame may be the only one its result gets (a buffer rendered
@@ -649,7 +649,7 @@ static std::unordered_map<uint32_t, uint64_t> g_target_drawn;  // render target 
 static uint64_t g_must_run_waits = 0;
 static double g_must_run_wait_ms = 0;
 static bool wait_compiled(const std::atomic<int>& st) {
-    static const double budgetMs = getenv("WWHD_COMPILE_WAIT_MS") ? atof(getenv("WWHD_COMPILE_WAIT_MS")) : 25.0;
+    static const double budgetMs = getenv("TPHD_COMPILE_WAIT_MS") ? atof(getenv("TPHD_COMPILE_WAIT_MS")) : 25.0;
     if (g_building_ahead) return st.load(std::memory_order_acquire) == CS_READY;
     static uint64_t frame = ~0ull;
     static double spent = 0;
@@ -872,9 +872,9 @@ static MTLSamplerAddressMode address_mode(uint32_t c) {
     }
 }
 
-// enhancement, toggled in game (Graphics menu or N; off by default, WWHD_ANISO=1 starts with it on): 16x anisotropic filtering on
+// enhancement, toggled in game (Graphics menu or N; off by default, TPHD_ANISO=1 starts with it on): 16x anisotropic filtering on
 // mipmapped, linearly filtered textures. Sharpens ground and water seen at shallow angles.
-static std::atomic<bool> g_aniso{[] { const char* e = getenv("WWHD_ANISO"); return e && atoi(e) != 0; }()};
+static std::atomic<bool> g_aniso{[] { const char* e = getenv("TPHD_ANISO"); return e && atoi(e) != 0; }()};
 bool aniso_enabled() { return g_aniso.load(std::memory_order_relaxed); }
 void set_aniso(bool v) { g_aniso = v; LOG("[gfx] anisotropic filtering %s", v ? "on" : "off"); }
 
@@ -991,9 +991,9 @@ static id<MTLTexture> texture_view(Surface* s, MTLTextureType type, uint32_t wor
     return v;
 }
 
-// WWHD_SNAPSHOT=1 copies uniform blocks and small vertex buffers at draw time instead of reading
+// TPHD_SNAPSHOT=1 copies uniform blocks and small vertex buffers at draw time instead of reading
 // guest memory when the GPU runs (costly; the per-core scheduler removed the race it guarded against)
-static const bool g_snapshot = getenv("WWHD_SNAPSHOT") != nullptr;
+static const bool g_snapshot = getenv("TPHD_SNAPSHOT") != nullptr;
 
 // ---------------------------------------------------------------- per-stage resources
 
@@ -1265,7 +1265,7 @@ static bool build_indices(uint32_t prim, uint32_t count, uint32_t indexType, uin
 // microcode plus the register state that shaped its translation. At startup the recipes are
 // replayed, so shaders and pipelines are ready before the game asks for them (macOS keeps the
 // compiled Metal code in its own cache, so the replay is fast after the first time).
-// WWHD_SHADER_CACHE=<file> overrides the location, WWHD_SHADER_CACHE=0 disables it.
+// TPHD_SHADER_CACHE=<file> overrides the location, TPHD_SHADER_CACHE=0 disables it.
 namespace {
 constexpr uint32_t kRecShader = 1, kRecPipeline = 2;
 FILE* g_cache_out = nullptr;
@@ -1283,7 +1283,7 @@ std::vector<PipelineRecipe> g_pending_pipelines;
 std::unordered_set<uint64_t> g_known_pipelines;
 
 std::string cache_path() {
-    if (const char* e = getenv("WWHD_SHADER_CACHE")) return e;
+    if (const char* e = getenv("TPHD_SHADER_CACHE")) return e;
     const char* home = getenv("HOME");
     std::string dir = std::string(home ? home : ".") + "/Library/Caches/tphd";
     mkdir(dir.c_str(), 0755);
@@ -1483,8 +1483,8 @@ static void build_pending_pipelines(int budget, int maxInFlight) {
 // build cached pipelines whose shaders have finished compiling; a few per frame
 void cache_warm_step() {
     // a few background compiles per frame keep the startup burst from starving the game, and none
-    // start while the game's own compiles keep the compiler busy (WWHD_BG_COMPILES, default 8 in flight)
-    static const int maxInFlight = getenv("WWHD_BG_COMPILES") ? atoi(getenv("WWHD_BG_COMPILES")) : 8;
+    // start while the game's own compiles keep the compiler busy (TPHD_BG_COMPILES, default 8 in flight)
+    static const int maxInFlight = getenv("TPHD_BG_COMPILES") ? atoi(getenv("TPHD_BG_COMPILES")) : 8;
     for (int n = 0; n < 16 && !g_deferred_shaders.empty() && g_compiles_in_flight < maxInFlight;) {
         Shader* s = g_deferred_shaders.back();
         g_deferred_shaders.pop_back();
@@ -1683,7 +1683,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
 
     // vertex buffers: small ones (UI, particles, dynamic geometry) are snapshotted like uniforms;
     // large static meshes are read from guest memory directly
-    static const uint32_t kSnapshotLimit = getenv("WWHD_VB_SNAPSHOT") ? (uint32_t)atoi(getenv("WWHD_VB_SNAPSHOT")) : 256 * 1024;
+    static const uint32_t kSnapshotLimit = getenv("TPHD_VB_SNAPSHOT") ? (uint32_t)atoi(getenv("TPHD_VB_SNAPSHOT")) : 256 * 1024;
     for (auto& g : fs->bufferGroups) {
         uint32_t addr = regs[mmSQ_VTX_ATTRIBUTE_BLOCK_START + g.attributeBufferIndex * 7];
         uint32_t size = regs[mmSQ_VTX_ATTRIBUTE_BLOCK_START + g.attributeBufferIndex * 7 + 1] + 1;
@@ -1731,22 +1731,22 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
     for (int i = 0; i < 8; i++)
         if (colors[i] && regs[mmCB_COLOR0_BASE + i]) g_target_drawn[regs[mmCB_COLOR0_BASE + i]] = R.frame;
     if (depth && regs[mmDB_DEPTH_BASE]) g_target_drawn[regs[mmDB_DEPTH_BASE]] = R.frame;
-    // debug: WWHD_DUMP_DRAWS=frame:i,j,k dumps color target 0 after those draws
+    // debug: TPHD_DUMP_DRAWS=frame:i,j,k dumps color target 0 after those draws
     static uint64_t dumpFrame = ~0ull;
     static std::set<uint64_t> dumpDraws = [] {
         std::set<uint64_t> d;
-        if (const char* e = getenv("WWHD_DUMP_DRAWS")) {
+        if (const char* e = getenv("TPHD_DUMP_DRAWS")) {
             char* p;
             dumpFrame = strtoull(e, &p, 10);
             while (*p == ':' || *p == ',') { p++; d.insert(strtoull(p, &p, 10)); }
         }
         return d;
     }();
-    // debug: WWHD_TRACE_PS=addr[:first-last] logs one compact line per matching draw (cheap enough to keep timing)
+    // debug: TPHD_TRACE_PS=addr[:first-last] logs one compact line per matching draw (cheap enough to keep timing)
     static uint32_t tracePS = 0;
     static uint64_t traceFrom = 0, traceTo = ~0ull;
     static bool traceInit = [] {
-        if (const char* e = getenv("WWHD_TRACE_PS")) {
+        if (const char* e = getenv("TPHD_TRACE_PS")) {
             char* p;
             tracePS = (uint32_t)strtoul(e, &p, 16);
             if (*p == ':') { traceFrom = strtoull(p + 1, &p, 10); traceTo = *p == '-' ? strtoull(p + 1, nullptr, 10) : traceFrom; }
@@ -1793,7 +1793,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
         }
         if (capturing()) dlog("%s", line); else LOG("%s", line);
     }
-    static uint32_t dumpPS = getenv("WWHD_DUMP_PS") ? (uint32_t)strtoul(getenv("WWHD_DUMP_PS"), nullptr, 16) : 0;
+    static uint32_t dumpPS = getenv("TPHD_DUMP_PS") ? (uint32_t)strtoul(getenv("TPHD_DUMP_PS"), nullptr, 16) : 0;
     bool psMatch = dumpPS && log_this_frame() && (regs[mmSQ_PGM_START_PS] << 8) == dumpPS;
     if (psMatch) {
         uint32_t vb = regs[mmSQ_VTX_ATTRIBUTE_BLOCK_START];

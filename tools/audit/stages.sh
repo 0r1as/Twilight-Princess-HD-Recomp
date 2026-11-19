@@ -13,7 +13,7 @@ printf 'stage\twarp\tarrived\talive\tcrash\tunimpl\tluma\tplace\n' > "$OUT/summa
 while IFS=$'\t' read -r WARP PLACE; do
   S=${WARP%%,*}
   [[ $S =~ $FILTER ]] || continue
-  R=$(LOAD=1 WWHD_WARP=150:$WARP "$ROOT/tools/audit/run_route.sh" "$ROOT/tools/audit/routes/idle.txt" 26 8 16 < /dev/null 2>&1)
+  R=$(LOAD=1 TPHD_WARP=150:$WARP "$ROOT/tools/audit/run_route.sh" "$ROOT/tools/audit/routes/idle.txt" 26 8 16 < /dev/null 2>&1)
   D=$ROOT/build/audit/idle
   cp "$D/log.txt" "$OUT/$S.log"
   for k in a:8 b:16; do [ -f "$D/t${k#*:}.png" ] && cp "$D/t${k#*:}.png" "$OUT/${S}_${k%%:*}.png"; done

@@ -6,7 +6,7 @@ disc dump:
 
   1. asks for the disc image (.wux/.wud) and its keys, a Cemu Wii U archive (.wua; no keys), or an
      already extracted game folder;
-  2. extracts the game files (tools/bin/wwhd-extract);
+  2. extracts the game files (tools/bin/tphd-extract);
   3. translates the game's PowerPC code to C (tools/recomp/recomp.py);
   4. compiles that code with a C compiler: Apple's Command Line Tools on macOS (Apple's installer is
      offered when they are missing); a Windows or Linux release (Vulkan builds) downloads its pinned
@@ -278,7 +278,7 @@ def clean_path(s):
 
 
 def native_dialog(title, folder, filetypes):
-    if os.environ.get("WWHD_SETUP_NO_DIALOGS"):
+    if os.environ.get("TPHD_SETUP_NO_DIALOGS"):
         return None
     try:
         if IS_MAC:
@@ -428,7 +428,7 @@ def win_shortcut(link, target, arguments="", workdir="", icon=""):
 
 
 # ---------------------------------------------------------------------------------------------
-# keys (kept in memory only; handed to wwhd-extract over stdin)
+# keys (kept in memory only; handed to tphd-extract over stdin)
 
 
 def parse_key(data):
@@ -525,7 +525,7 @@ def download(url, dst, sha256, size_hint, label):
     tmp = dst + ".part"
     say("  Downloading %s" % url)
     h = hashlib.sha256()
-    req = urllib.request.Request(url, headers={"User-Agent": "wwhd-setup"})
+    req = urllib.request.Request(url, headers={"User-Agent": "tphd-setup"})
     try:
         with urllib.request.urlopen(req, timeout=60) as r, open(tmp, "wb") as f:
             total = int(r.headers.get("Content-Length") or size_hint or 0)
@@ -585,9 +585,12 @@ def get_toolchain(name, data_dir, ui):
     root = os.path.join(data_dir, "toolchain")
     os.makedirs(root, exist_ok=True)
     tdir = os.path.join(root, tc["dir"])
-    marker = os.path.join(tdir, ".wwhd-toolchain")
-    if os.environ.get("WWHD_TOOLCHAIN_DIR"):  # CI: a toolchain already unpacked from the same pinned archive
-        tdir = os.environ["WWHD_TOOLCHAIN_DIR"]
+    marker = os.path.join(tdir, ".tphd-toolchain")
+    old_marker = os.path.join(tdir, ".wwhd-toolchain")  # written before the rename to tphd: the same unpacked compiler
+    if not os.path.isfile(marker) and os.path.isfile(old_marker):
+        os.replace(old_marker, marker)
+    if os.environ.get("TPHD_TOOLCHAIN_DIR"):  # CI: a toolchain already unpacked from the same pinned archive
+        tdir = os.environ["TPHD_TOOLCHAIN_DIR"]
     elif not (os.path.isfile(marker) and open(marker).read().strip() == tc["sha256"]):
         need = tc.get("size", 0) * 6
         if free_space(root) < need:
@@ -634,9 +637,9 @@ def get_toolchain(name, data_dir, ui):
 
 
 def extractor():
-    p = os.path.join(PKG, "tools", "bin", "wwhd-extract" + EXE_SUFFIX)
+    p = os.path.join(PKG, "tools", "bin", "tphd-extract" + EXE_SUFFIX)
     if not os.path.isfile(p):
-        raise SetupError("tools/bin/wwhd-extract%s is missing from this release folder (incomplete download?)" % EXE_SUFFIX)
+        raise SetupError("tools/bin/tphd-extract%s is missing from this release folder (incomplete download?)" % EXE_SUFFIX)
     return p
 
 
@@ -644,7 +647,7 @@ def disc_info(image, keys):
     p = subprocess.run([extractor(), "--keys-stdin", "info", image], input=keys.stdin_blob(), stdout=subprocess.PIPE,
                        stderr=subprocess.PIPE)
     err = p.stderr.decode("utf-8", "replace").strip()
-    LOG.write("wwhd-extract info: exit %d %s" % (p.returncode, err))
+    LOG.write("tphd-extract info: exit %d %s" % (p.returncode, err))
     if p.returncode != 0:
         return EXTRACT_ERRORS.get(p.returncode, "image_bad"), err, None
     info = {}
@@ -678,13 +681,13 @@ def title_desc(tid, version=None):
 
 
 def code_hash_args(title):
-    """wwhd-extract takes an archive's only, unlabeled title (0000000000000000_v0: some tools leave the title id out)
+    """tphd-extract takes an archive's only, unlabeled title (0000000000000000_v0: some tools leave the title id out)
     as the game when its code/Zelda.rpx has this SHA-256; check_game_version checks it again after extracting."""
     return ["--code-sha256", SUPPORTED_RPX_SHA256] if title and title[:16].lower() == SUPPORTED_TITLE else []
 
 
 def archive_info(path, title=SUPPORTED_TITLE):
-    """wwhd-extract info on a Cemu archive, asking for a title (the supported one; None: just list them).
+    """tphd-extract info on a Cemu archive, asking for a title (the supported one; None: just list them).
     Returns (problem, message, info);
     info: {"titles": [{id, version, folder, files, bytes}], "selected", "title_id", "version", "files", "bytes"}
     (also for problem "wrong_title": what the archive does contain)."""
@@ -692,7 +695,7 @@ def archive_info(path, title=SUPPORTED_TITLE):
                        stdin=subprocess.DEVNULL,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     err = p.stderr.decode("utf-8", "replace").strip()
-    LOG.write("wwhd-extract info (archive): exit %d %s" % (p.returncode, err))
+    LOG.write("tphd-extract info (archive): exit %d %s" % (p.returncode, err))
     info = {"titles": []}
     for line in p.stdout.decode("utf-8", "replace").splitlines():
         k, _, v = line.partition(" ")
@@ -730,7 +733,7 @@ def archive_choice(info):
         raise SetupError("this archive does not contain Twilight Princess HD (USA), title 00050000-1019E500 "
                          "(it contains: %s)." % found)
     if info.get("unlabeled") == "1":
-        # no title id or version in the archive: wwhd-extract matched the game code's SHA-256 (checked again after
+        # no title id or version in the archive: tphd-extract matched the game code's SHA-256 (checked again after
         # extracting, check_game_version), which only version 81 of the USA game has
         return info["selected"], ["The archive doesn't name its title (folder %s); it was recognised as Twilight "
                                   "Princess HD (USA), version 81, by its game code." % info["selected"]]
@@ -925,7 +928,7 @@ def extract_game(image, keys, info, data_dir, title=None):
 
 
 def run_extract(image, keys, out, title=None):
-    """wwhd-extract into out: a disc image (keys) or one title of a Cemu archive (title, no keys). Removes
+    """tphd-extract into out: a disc image (keys) or one title of a Cemu archive (title, no keys). Removes
     out on failure."""
     pr = Progress("extracting")
     if title:
@@ -1114,16 +1117,28 @@ def link_game(tc, manifest, objs, work, out_exe):
 # launchers
 
 
+def remove_old_names(data_dir, exe_dir):
+    """Installs made before the rename to tphd have the game as bin/wwhd and its icon as wwhd.png or wwhd.ico; an
+    update builds bin/tphd and writes the launchers and icon anew, so the old files go."""
+    for path in (os.path.join(exe_dir, "wwhd" + EXE_SUFFIX), os.path.join(data_dir, "wwhd.png"), os.path.join(data_dir, "wwhd.ico")):
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+                LOG.write("removed %s (named before the rename to tphd)" % path)
+        except OSError as e:
+            LOG.write("could not remove %s: %s" % (path, e))
+
+
 def mac_app(app_path, exe_src, data_dir, version):
     """~/Applications/Twilight Princess HD.app: the game binary plus a launcher that points it at the data folder."""
     tmp = app_path + ".tmp"
     shutil.rmtree(tmp, ignore_errors=True)
     macos = os.path.join(tmp, "Contents", "MacOS")
     os.makedirs(macos)
-    shutil.copy2(exe_src, os.path.join(macos, "wwhd"))
+    shutil.copy2(exe_src, os.path.join(macos, "tphd"))
     launcher = os.path.join(macos, "launch")
     with open(launcher, "w") as f:
-        f.write('#!/bin/sh\n# written by the Twilight Princess HD setup\ncd "%s" || exit 1\nexec "$(dirname "$0")/wwhd" '
+        f.write('#!/bin/sh\n# written by the Twilight Princess HD setup\ncd "%s" || exit 1\nexec "$(dirname "$0")/tphd" '
                 '--game game --save save "$@"\n' % data_dir.replace('"', '\\"'))
     os.chmod(launcher, 0o755)
     plist = """<?xml version="1.0" encoding="UTF-8"?>
@@ -1175,11 +1190,11 @@ def game_icon_png(data_dir):
 
 
 def write_game_icon(data_dir, ico):
-    """wwhd.ico (a PNG-compressed icon) or wwhd.png in the data folder, from the game's own icon."""
+    """tphd.ico (a PNG-compressed icon) or tphd.png in the data folder, from the game's own icon."""
     png = game_icon_png(data_dir)
     if not png:
         return None
-    path = os.path.join(data_dir, "wwhd.ico" if ico else "wwhd.png")
+    path = os.path.join(data_dir, "tphd.ico" if ico else "tphd.png")
     with open(path, "wb") as f:
         if ico:
             w, h = struct.unpack(">II", png[16:24])
@@ -1615,6 +1630,7 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
         shutil.copyfile(os.path.join(PKG, "sdk", "runtime", rf), os.path.join(exe_dir, rf))
         shutil.copymode(os.path.join(PKG, "sdk", "runtime", rf), os.path.join(exe_dir, rf))
     os.replace(new_exe, exe)
+    remove_old_names(data_dir, exe_dir)
     say("  Built %s" % exe)
 
     state = {"version": ctx.version, "platform": manifest["platform"], "exe": exe, "data_dir": data_dir,
@@ -1639,7 +1655,7 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
             if not os.listdir(exe_dir):
                 os.rmdir(exe_dir)
             state["app"] = app
-            state["exe"] = os.path.join(app, "Contents", "MacOS", "wwhd")
+            state["exe"] = os.path.join(app, "Contents", "MacOS", "tphd")
             say("  App: %s" % app)
         elif IS_LINUX:
             state["launcher"] = linux_launchers(data_dir, exe)
@@ -1668,7 +1684,7 @@ def main():
     ap.add_argument("--app-dir", help="macOS: where the app goes (default: ~/Applications)")
     ap.add_argument("--repair", action="store_true", help="rebuild the game code from the installed game files")
     ap.add_argument("--jobs", type=int, help="parallel compiler processes")
-    ap.add_argument("--yes", action="store_true", help="non-interactive (also WWHD_SETUP_NONINTERACTIVE=1)")
+    ap.add_argument("--yes", action="store_true", help="non-interactive (also TPHD_SETUP_NONINTERACTIVE=1)")
     ap.add_argument("--no-launch", action="store_true", help="do not start the game at the end")
     ap.add_argument("--no-shortcuts", action="store_true", help="no app bundle / menu entries")
     ap.add_argument("--shortcuts", action="store_true",
@@ -1686,7 +1702,7 @@ def main():
         pass
     if args.gui_protocol:
         return gui_main(args)
-    interactive = not (args.yes or os.environ.get("WWHD_SETUP_NONINTERACTIVE")) and sys.stdin.isatty()
+    interactive = not (args.yes or os.environ.get("TPHD_SETUP_NONINTERACTIVE")) and sys.stdin.isatty()
     ui = UI(interactive)
     try:
         rc = run(args, ui)

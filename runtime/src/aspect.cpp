@@ -26,7 +26,7 @@ constexpr float kBase = 16.0f / 9.0f;
 constexpr uint32_t kSetTvSize = 0x02AEC704, kOnWide2D = 0x02A387B4;
 constexpr int kWideH = 448;
 int env_mode() {
-    const char* e = getenv("WWHD_ASPECT");
+    const char* e = getenv("TPHD_ASPECT");
     if (!e) return kOriginal;
     if (!strcmp(e, "window")) return kWindow;
     if (!strcmp(e, "16:10")) return k16x10;

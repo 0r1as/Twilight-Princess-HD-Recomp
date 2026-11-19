@@ -29,7 +29,7 @@
 #include <sys/syscall.h>
 #endif
 namespace host {
-#if defined(__APPLE__) && defined(WWHD_HAS_VULKAN)
+#if defined(__APPLE__) && defined(TPHD_HAS_VULKAN)
 // Render command batches can create Objective-C temporaries inside MoltenVK.
 void with_autorelease_pool(void (*fn)());
 void with_autorelease_pool(void (*fn)(void*), void* context);
@@ -62,9 +62,9 @@ inline void set_thread_name(const char* name) {
 // user-interactive (the default QoS let macOS park them on efficiency cores). Windows: above-normal
 // priority and no power throttling (hybrid P/E-core CPUs otherwise move busy threads to E-cores).
 // Linux: a small nice boost where the process may raise priority (needs CAP_SYS_NICE; otherwise a
-// no-op). WWHD_NO_QOS=1 leaves the thread untouched on every platform.
+// no-op). TPHD_NO_QOS=1 leaves the thread untouched on every platform.
 inline void boost_thread_priority() {
- if(getenv("WWHD_NO_QOS")) return;
+ if(getenv("TPHD_NO_QOS")) return;
 #ifdef __APPLE__
  pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE,0);
 #elif defined(_WIN32)
@@ -143,7 +143,7 @@ inline bool replace_file(const std::string& from,const std::string& to) {
 }
 // Portable mode (release packages): a file "portable.txt" next to the executable keeps every
 // per-user file (settings, controls, save states, shader caches) in "user" next to the executable's
-// folder (<folder>/bin/wwhd -> <folder>/user) instead of the user's Library / AppData / .config.
+// folder (<folder>/bin/tphd -> <folder>/user) instead of the user's Library / AppData / .config.
 // Without the marker (source builds) nothing changes.
 inline std::string exe_dir() {
  static const std::string dir=[]{

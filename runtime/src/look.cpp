@@ -23,18 +23,18 @@
 
 namespace look {
 namespace {
-// WWHD_BLOOM / WWHD_FOG=reduced|off, WWHD_HUD=0 and WWHD_SHARPNESS=sharper|sharpest for this start (tests)
+// TPHD_BLOOM / TPHD_FOG=reduced|off, TPHD_HUD=0 and TPHD_SHARPNESS=sharper|sharpest for this start (tests)
 int env_strength(const char* var) {
     const char* e = getenv(var);
     return !e ? kBloomOriginal : !strcmp(e, "reduced") ? kBloomReduced : !strcmp(e, "off") ? kBloomOff : kBloomOriginal;
 }
 int env_sharpness() {
-    const char* e = getenv("WWHD_SHARPNESS");
+    const char* e = getenv("TPHD_SHARPNESS");
     return !e ? kSharpOriginal : !strcmp(e, "sharper") ? kSharper : !strcmp(e, "sharpest") ? kSharpest : kSharpOriginal;
 }
-std::atomic<int> g_bloom{env_strength("WWHD_BLOOM")};
-std::atomic<int> g_fog{env_strength("WWHD_FOG")};
-std::atomic<bool> g_hud{!getenv("WWHD_HUD") || atoi(getenv("WWHD_HUD")) != 0};
+std::atomic<int> g_bloom{env_strength("TPHD_BLOOM")};
+std::atomic<int> g_fog{env_strength("TPHD_FOG")};
+std::atomic<bool> g_hud{!getenv("TPHD_HUD") || atoi(getenv("TPHD_HUD")) != 0};
 std::atomic<int> g_sharpness{env_sharpness()};
 }  // namespace
 

@@ -253,7 +253,7 @@ void update_texture(VkCommandBuffer cmd, ImTextureData* tex) {
 
 void overlay_renderer_init() {
     ImGuiIO& io = ImGui::GetIO();
-    io.BackendRendererName = "wwhd_vulkan";
+    io.BackendRendererName = "tphd_vulkan";
     io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures | ImGuiBackendFlags_RendererHasVtxOffset;
 }
 

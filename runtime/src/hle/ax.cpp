@@ -241,9 +241,9 @@ void mix_into(const float* in, float* out, ChMix& m) {
     }
 }
 
-// debug: WWHD_AX_STATS=1 logs the active voices about once a second
+// debug: TPHD_AX_STATS=1 logs the active voices about once a second
 void log_stats() {
-    static bool on = getenv("WWHD_AX_STATS") != nullptr;
+    static bool on = getenv("TPHD_AX_STATS") != nullptr;
     static int frame = 0;
     if (!on || ++frame % 333) return;
     int n = 0, fmt[3] = {}, filt[3] = {}, loops = 0, streams = 0;
@@ -329,7 +329,7 @@ void init_buffers() {
     G.drc_param = mem::runtime_alloc(0x10, 32);
     for (auto& f : g_drc_aux)
         for (auto& b : f) b = mem::host_alloc(4 * kDrcChannels * kSamples, 64);  // zeroed
-    g_output.source = audio::OutputSelect::parse(getenv("WWHD_AUDIO_OUTPUT"));
+    g_output.source = audio::OutputSelect::parse(getenv("TPHD_AUDIO_OUTPUT"));
 }
 
 // The game's output device (audio_output_mode.h): its sound DSP (*1012B6DC) mixes into the TV or,
@@ -732,12 +732,12 @@ static void trace_voice_start(Cpu* c, uint32_t voice_addr, uint32_t samples) {
     fflush(f);
 }
 
-// debug: WWHD_AX_STATS=1 logs calls per second of the voice API every 5 s
+// debug: TPHD_AX_STATS=1 logs calls per second of the voice API every 5 s
 enum { kAxStatCount = 15 };
 static const char* kAxStatNames[kAxStatCount] = {"AXAcquireVoiceEx", "AXFreeVoice", "AXSetVoiceState", "AXSetVoiceOffsets", "AXSetVoiceLoop", "AXSetVoiceEndOffsetEx", "AXSetVoiceLoopOffsetEx", "AXSetVoiceSrcRatio", "AXSetVoiceSrc", "AXSetVoiceVe", "AXSetVoiceDeviceMix", "AXSetVoiceAdpcm", "AXSetVoiceAdpcmLoop", "AXSetVoiceType", "AXSetVoicePriority"};
 static std::atomic<uint32_t> g_ax_stats[kAxStatCount];
 static void ax_stat(int i) {
-    static const bool on = getenv("WWHD_AX_STATS") != nullptr;
+    static const bool on = getenv("TPHD_AX_STATS") != nullptr;
     if (!on) return;
     g_ax_stats[i]++;
     static std::atomic<uint64_t> t0{timebase::now()};
@@ -753,20 +753,20 @@ static void ax_stat(int i) {
     }
 }
 
-// test aid: WWHD_SOUND_TRACE=file records voice starts for the first 60 s after the first voice
+// test aid: TPHD_SOUND_TRACE=file records voice starts for the first 60 s after the first voice
 static void sound_trace_env() {
     static bool done = false;
     if (done) return;
     done = true;
-    if (const char* e = getenv("WWHD_SOUND_TRACE")) ax::start_sound_trace(e, 60.0);
+    if (const char* e = getenv("TPHD_SOUND_TRACE")) ax::start_sound_trace(e, 60.0);
 }
 
 HLE(sndcore2, AXAcquireVoiceEx) {
     ax_stat(0);
     sound_trace_env();
     {
-        // debug: WWHD_VOICE_RATE=1 logs voice acquisitions per second every 5 s
-        static const bool rate = getenv("WWHD_VOICE_RATE") != nullptr;
+        // debug: TPHD_VOICE_RATE=1 logs voice acquisitions per second every 5 s
+        static const bool rate = getenv("TPHD_VOICE_RATE") != nullptr;
         if (rate) {
             static uint64_t n = 0, t0 = timebase::now();
             n++;
@@ -777,8 +777,8 @@ HLE(sndcore2, AXAcquireVoiceEx) {
                 t0 = t;
             }
         }
-        // debug: WWHD_TRACE_VOICE=n logs voice acquisitions with the frame phase (frame interpolation)
-        static int trace = getenv("WWHD_TRACE_VOICE") ? atoi(getenv("WWHD_TRACE_VOICE")) : 0;
+        // debug: TPHD_TRACE_VOICE=n logs voice acquisitions with the frame phase (frame interpolation)
+        static int trace = getenv("TPHD_TRACE_VOICE") ? atoi(getenv("TPHD_TRACE_VOICE")) : 0;
         if (trace > 0) {
             trace--;
             char buf[256];

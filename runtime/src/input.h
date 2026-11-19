@@ -32,7 +32,7 @@ PadState read();   // any thread
 void release_keys();                // forget held keys (another window took the keyboard)
 void controller_values(float* v);   // main thread: input_map::kPadCount host controller inputs, 0..1
 void host_controller_values(float* v);  // any thread: the latest controller_values (settings overlay)
-void held_keys(bool* keys);         // 256 entries: keys held for the game (keyboard + WWHD_KEYS script)
+void held_keys(bool* keys);         // 256 entries: keys held for the game (keyboard + TPHD_KEYS script)
 
 // The host drives the controllers' rumble motors (SDL host; the game's requests are kept by
 // rumble.h). The AppKit host does not yet.

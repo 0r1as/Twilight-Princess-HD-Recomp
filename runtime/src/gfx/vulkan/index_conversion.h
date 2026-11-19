@@ -80,16 +80,16 @@ inline void convert_indices(const void* data, uint32_t prim, uint32_t count,
     }, out);
     return;
   }
-#define WWHD_INDEX_CASE(T, W, BE) case T: \
+#define TPHD_INDEX_CASE(T, W, BE) case T: \
   if (restart) convert_index_words<W, BE, true>(data, prim, count, marker, out); \
   else convert_index_words<W, BE, false>(data, prim, count, marker, out); break
   switch (type) {
-    WWHD_INDEX_CASE(0, uint16_t, false);
-    WWHD_INDEX_CASE(1, uint32_t, false);
-    WWHD_INDEX_CASE(4, uint16_t, true);
-    WWHD_INDEX_CASE(9, uint32_t, true);
+    TPHD_INDEX_CASE(0, uint16_t, false);
+    TPHD_INDEX_CASE(1, uint32_t, false);
+    TPHD_INDEX_CASE(4, uint16_t, true);
+    TPHD_INDEX_CASE(9, uint32_t, true);
     default: throw std::runtime_error("unsupported index type");
   }
-#undef WWHD_INDEX_CASE
+#undef TPHD_INDEX_CASE
 }
 } // namespace gfxvk::vk

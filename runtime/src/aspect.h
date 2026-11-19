@@ -1,4 +1,4 @@
-// Aspect ratio of the TV picture (Graphics menu, WWHD_ASPECT=window|16:10|21:9|32:9): see aspect.cpp.
+// Aspect ratio of the TV picture (Graphics menu, TPHD_ASPECT=window|16:10|21:9|32:9): see aspect.cpp.
 #pragma once
 #include <cstdint>
 

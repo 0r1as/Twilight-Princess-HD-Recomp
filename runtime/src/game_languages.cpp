@@ -45,10 +45,10 @@ const Variant& choose(int language, const std::string& region) {
 const Variant& current() {
     static const Variant& v = [&]() -> const Variant& {
         std::string language, region;
-        const char* why = "WWHD_LANGUAGE";
-        if (const char* e = getenv("WWHD_LANGUAGE"); e && *e) {
+        const char* why = "TPHD_LANGUAGE";
+        if (const char* e = getenv("TPHD_LANGUAGE"); e && *e) {
             language = e;
-            if (const char* r = getenv("WWHD_LANGUAGE_REGION")) region = r;
+            if (const char* r = getenv("TPHD_LANGUAGE_REGION")) region = r;
         } else if (hostui::get("language", language) && !language.empty()) {
             hostui::get("language_region", region);
             why = "saved setting";

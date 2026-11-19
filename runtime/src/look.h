@@ -1,5 +1,5 @@
 // How the game looks, beyond the renderer's options (Graphics menu and the settings overlay's Graphics tab;
-// WWHD_BLOOM=reduced|off, WWHD_FOG=reduced|off, WWHD_HUD=0, WWHD_SHARPNESS=sharper|sharpest): bloom strength,
+// TPHD_BLOOM=reduced|off, TPHD_FOG=reduced|off, TPHD_HUD=0, TPHD_SHARPNESS=sharper|sharpest): bloom strength,
 // distant fog, the HUD and texture sharpness (the Metal renderer's LOD bias). See look.cpp.
 #pragma once
 

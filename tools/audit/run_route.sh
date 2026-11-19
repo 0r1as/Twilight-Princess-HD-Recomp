@@ -11,9 +11,9 @@
 # use; needs screen recording permission).
 # Env: SAVE (save folder under build/audit/saves, default "route"), FRESH=1 starts that save folder empty,
 # LOAD=<slot> loads save state <slot> from build/audit/states at frame 60 and starts the route's clock a game second later
-# (take one with WWHD_STATE_SAVE_AT=<frame>:<slot>).
-# APP=<wwhd> runs another build (default: the first of build/cmake-tphd, build/linux-game and build/cmake that has one).
-# Other WWHD_* variables pass through, e.g. WWHD_WARP=150:<stage>,<point>,<room>,<layer> (tools/warplist.py).
+# (take one with TPHD_STATE_SAVE_AT=<frame>:<slot>).
+# APP=<tphd> runs another build (default: the first of build/cmake-tphd, build/linux-game and build/cmake that has one).
+# Other TPHD_* variables pass through, e.g. TPHD_WARP=150:<stage>,<point>,<room>,<layer> (tools/warplist.py).
 # macOS and Linux: crashes are found in macOS's crash reports and in the runtime's own captures/crash-*.log; shots are
 # scaled with sips or ImageMagick (kept at full size without either); video clips need macOS (Swift, screen recording).
 set -u
@@ -22,8 +22,8 @@ ROUTE=$(cd "$(dirname "$1")" && pwd)/$(basename "$1"); TOTAL=$2; shift 2
 NAME=$(basename "$ROUTE" .txt); OUT=$ROOT/build/audit/$NAME; rm -rf "$OUT"; mkdir -p "$OUT"
 SAVEDIR=$ROOT/build/audit/saves/${SAVE:-route}; [ "${FRESH:-0}" = 1 ] && rm -rf "$SAVEDIR"; mkdir -p "$SAVEDIR"
 if [ -z "${APP:-}" ]; then  # another build (an agent's worktree) runs through this checkout's lock
-  for A in build/cmake-tphd/wwhd build/linux-game/wwhd build/cmake/wwhd; do [ -x "$ROOT/$A" ] && { APP=$ROOT/$A; break; }; done
-  APP=${APP:-$ROOT/build/cmake-tphd/wwhd}
+  for A in build/cmake-tphd/tphd build/linux-game/tphd build/cmake/tphd; do [ -x "$ROOT/$A" ] && { APP=$ROOT/$A; break; }; done
+  APP=${APP:-$ROOT/build/cmake-tphd/tphd}
 fi
 LOCK=$ROOT/build/audit/.run.lock
 until mkdir "$LOCK" 2>/dev/null; do sleep 2; done; trap 'rmdir "$LOCK"' EXIT
@@ -48,16 +48,16 @@ while read -r RANGE WHAT X Y; do
   esac
 done < "$ROUTE"
 
-FPS=30; [ "${WWHD_INTERP:-0}" = 1 ] && FPS=60  # frames per game second (shots are TV frames)
+FPS=30; [ "${TPHD_INTERP:-0}" = 1 ] && FPS=60  # frames per game second (shots are TV frames)
 ORIGIN=1; [ -n "${LOAD:-}" ] && ORIGIN=$((60 + FPS))  # one game second after the state loads (frame 60)
 DUMPS=; CLIPS_AT=()
 for SHOT in "$@"; do
   if [[ $SHOT == v* ]]; then CLIPS_AT+=("$SHOT"); else DUMPS+="${DUMPS:+,}$(perl -e "print int($SHOT * $FPS + $ORIGIN)")"; fi
 done
 
-pkill -TERM -f "$ROOT/.*wwhd " 2>/dev/null && sleep 2  # this checkout's builds only (other projects run their own wwhd)
+pkill -TERM -f "$ROOT/.*tphd " 2>/dev/null && sleep 2  # this checkout's builds only (other projects run their own tphd)
 # crash reports: macOS's, and the runtime's own in the run's captures/ (every platform)
-crash_reports() { { ls -t ~/Library/Logs/DiagnosticReports/wwhd* "$OUT"/captures/crash-*.log 2>/dev/null; } | grep -v '^$'; }
+crash_reports() { { ls -t ~/Library/Logs/DiagnosticReports/tphd* "$OUT"/captures/crash-*.log 2>/dev/null; } | grep -v '^$'; }
 BEFORE=$(crash_reports | grep -c .)
 # shrink <max side> <in> <out>: scaled to fit (sips on macOS, ImageMagick elsewhere; a copy without either)
 shrink() {
@@ -68,8 +68,8 @@ shrink() {
 cd "$OUT"
 # a state loads only if this boot's threads wait where the saved ones did, which depends on timing: boot again
 for TRY in 1 2 3 4 5; do
-  WWHD_STATE_DIR=$ROOT/build/audit/states WWHD_STATE_LOAD_AT=${LOAD:+60:$LOAD} \
-  WWHD_TEST_ORIGIN=$ORIGIN WWHD_TEST_PRESS=$PRESS WWHD_TEST_STICK=$STICK WWHD_TEST_RSTICK=$RSTICK WWHD_DUMP_FRAMES=$DUMPS \
+  TPHD_STATE_DIR=$ROOT/build/audit/states TPHD_STATE_LOAD_AT=${LOAD:+60:$LOAD} \
+  TPHD_TEST_ORIGIN=$ORIGIN TPHD_TEST_PRESS=$PRESS TPHD_TEST_STICK=$STICK TPHD_TEST_RSTICK=$RSTICK TPHD_DUMP_FRAMES=$DUMPS \
     "$APP" --game "$ROOT/game" --save "$SAVEDIR" > log.txt 2>&1 &
   PID=$!; disown $PID; START=$(date +%s)
   [ -z "${LOAD:-}" ] && break
