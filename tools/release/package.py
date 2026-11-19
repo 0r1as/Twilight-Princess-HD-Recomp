@@ -435,7 +435,7 @@ def main():
     with open(os.path.join(licdir, "README.txt"), "w") as f:
         f.writelines(index)
     with open(os.path.join(pkg, "VERSION.txt"), "w") as f:
-        f.write("Twilight Princess HD native macOS port %s (%s)\n"
+        f.write("Twilight Princess HD native PC port %s (%s)\n"
                 "This package contains no game code, game data or keys; the installer builds the game\n"
                 "from your own disc dump on your machine.\n" % (a.version, a.platform))
 
