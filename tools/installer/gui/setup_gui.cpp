@@ -68,19 +68,19 @@
 // ---------------------------------------------------------------------------------------------
 // minimal JSON (the protocol's own messages only)
 
+// an object's members: a struct, not std::pair<std::string, J> (a pair of the still incomplete J, which GCC 16's
+// standard library rejects)
+struct J;
+struct JMember;
 struct J {
     enum T { Null, Bool, Num, Str, Arr, Obj } t = Null;
     bool b = false;
     double n = 0;
     std::string s;
     std::vector<J> a;
-    std::vector<std::pair<std::string, J>> o;
+    std::vector<JMember> o;
 
-    const J* get(const char* k) const {
-        for (auto& kv : o)
-            if (kv.first == k) return &kv.second;
-        return nullptr;
-    }
+    const J* get(const char* k) const;  // below JMember
     std::string str(const char* k, const std::string& def = "") const {
         const J* v = get(k);
         return v && v->t == Str ? v->s : def;
@@ -98,6 +98,15 @@ struct J {
         return !v || v->t == Null;
     }
 };
+struct JMember {
+    std::string first;
+    J second;
+};
+inline const J* J::get(const char* k) const {
+    for (auto& kv : o)
+        if (kv.first == k) return &kv.second;
+    return nullptr;
+}
 
 struct JParser {
     const char* p;
@@ -177,7 +186,7 @@ struct JParser {
                 ws();
                 if (p >= e || *p != ':') return ok = false, v;
                 p++;
-                v.o.emplace_back(k, value());
+                v.o.push_back(JMember{k, value()});
                 ws();
                 if (p < e && *p == ',') { p++; continue; }
                 if (p < e && *p == '}') { p++; break; }
