@@ -68,6 +68,25 @@ def check_python(name, data, seen, problems):
     return True
 
 
+STEAM_FILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "steam-pictures.json")
+STEAM_DIR = re.compile(r"(?:^|/)steam/([^/]+)$")
+
+
+def check_steam(name, data, seen, problems):
+    """steam/...: only the pinned Steam pictures (steam-pictures.json), unmodified."""
+    m = STEAM_DIR.search(name.replace("\\", "/"))
+    if not m:
+        return
+    with open(STEAM_FILES) as f:
+        expected = json.load(f)["files"]
+    rel = m.group(1)
+    if rel not in expected:
+        problems.append("%s: not one of the pinned Steam pictures (tools/release/steam-pictures.json)" % name)
+    elif hashlib.sha256(data).hexdigest() != expected[rel]:
+        problems.append("%s: differs from the pinned Steam picture" % name)
+    seen.add(rel)
+
+
 def check_entry(name, data, problems):
     n = name.replace("\\", "/")
     for rx, why in BAD_NAME:
@@ -83,10 +102,11 @@ def check_entry(name, data, problems):
 
 
 def scan(path):
-    problems, count, python = [], 0, set()
+    problems, count, python, steam_pics = [], 0, set(), set()
 
     def entry(name, data):
         check_python(name, data, python, problems)
+        check_steam(name, data, steam_pics, problems)
         check_entry(name, data, problems)
 
     if os.path.isdir(path):

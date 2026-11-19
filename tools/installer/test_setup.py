@@ -8,10 +8,13 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zlib
 from unittest import mock
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
 import setup  # noqa: E402
+import steam  # noqa: E402
 
 KEY_HEX = "0011223344556677" "8899aabbccddeeff"  # made-up test value
 
@@ -346,6 +349,136 @@ class RenamedInstall(unittest.TestCase):
             self.assertEqual(t.cc[0], os.path.join(tdir, "zig"))
             self.assertTrue(os.path.isfile(os.path.join(tdir, ".tphd-toolchain")))
             self.assertFalse(os.path.exists(os.path.join(tdir, ".wwhd-toolchain")))
+
+
+class Steam(unittest.TestCase):
+    """Add to Steam (steam.py): shortcuts.vdf, the account, the pictures."""
+
+    def fake_steam(self, t, accounts=("123",), most_recent=None):
+        root = os.path.join(t, "Steam")
+        for acc in accounts:
+            os.makedirs(os.path.join(root, "userdata", acc, "config"))
+        os.makedirs(os.path.join(root, "config"))
+        with open(os.path.join(root, "config", "loginusers.vdf"), "w") as f:
+            f.write('"users"\n{\n')
+            for acc in accounts:
+                f.write('\t"%d"\n\t{\n\t\t"AccountName"\t\t"x"\n\t\t"MostRecent"\t\t"%d"\n\t}\n'
+                        % (int(acc) + steam.STEAM_ID64_BASE, acc == most_recent))
+            f.write("}\n")
+        pics = os.path.join(t, "pics")
+        os.makedirs(pics)
+        for n in ("cover.png", "wide.png", "hero.png", "logo.png", "icon.png", "icon.ico"):
+            with open(os.path.join(pics, n), "wb") as f:
+                f.write(n.encode())
+        return root, pics
+
+    def test_vdf_round_trip(self):
+        m = {"shortcuts": {"0": {"appid": -5, "AppName": "Other game", "Exe": '"/x/y"', "LastPlayTime": 7,
+                                 "weird": steam.Raw(0x07, b"12345678"), "tags": {"0": "Favorite"}}}}
+        data = steam.write_vdf(m)
+        self.assertEqual(steam.parse_vdf(data), m)
+        self.assertEqual(steam.write_vdf(steam.parse_vdf(data)), data)
+        self.assertEqual(steam.parse_vdf(b""), {"shortcuts": {}})
+        with self.assertRaises(steam.SteamError):
+            steam.parse_vdf(data[:-3])
+
+    def test_appid(self):
+        # the id Steam gives a non-Steam game: CRC-32 of the quoted Exe and the name, top bit set
+        a = steam.shortcut_appid('"/games/tp.AppImage"', "Twilight Princess HD")
+        self.assertEqual(a, (zlib.crc32(b'"/games/tp.AppImage"Twilight Princess HD') & 0xFFFFFFFF) | 0x80000000)
+        self.assertTrue(a & 0x80000000)
+        self.assertEqual(steam.signed(a) & 0xFFFFFFFF, a)
+        self.assertLess(steam.signed(a), 0)
+
+    def test_add_new_and_update_existing(self):
+        m = {"shortcuts": {"0": {"AppName": "Other game", "Exe": '"/other"', "appid": -1}}}
+        appid, added = steam.add_shortcut(m, "Twilight Princess HD", "/g/tp.AppImage", "/g", "", "/d/icon.png")
+        self.assertTrue(added)
+        e = m["shortcuts"]["1"]
+        self.assertEqual((e["AppName"], e["Exe"], e["StartDir"], e["icon"]),
+                         ("Twilight Princess HD", '"/g/tp.AppImage"', '"/g"', "/d/icon.png"))
+        self.assertEqual(e["appid"] & 0xFFFFFFFF, appid)
+        self.assertEqual(m["shortcuts"]["0"]["AppName"], "Other game")
+        # the same program again (a name given in Steam is kept, no second entry)
+        e["AppName"] = "The Legend of Zelda Twilight Princess HD"
+        again, added = steam.add_shortcut(m, "Twilight Princess HD", "/g/tp.AppImage", "/g", "", "/d/icon2.png")
+        self.assertFalse(added)
+        self.assertEqual(again, appid)
+        self.assertEqual(len(m["shortcuts"]), 2)
+        self.assertEqual((e["AppName"], e["icon"]), ("The Legend of Zelda Twilight Princess HD", "/d/icon2.png"))
+
+    def test_entry_without_appid(self):
+        # an entry an older Steam wrote has no appid field: its id comes from its Exe and name
+        m = {"shortcuts": {"0": {"AppName": "Mine", "Exe": '"/g/tp.AppImage"'}}}
+        appid, added = steam.add_shortcut(m, "Twilight Princess HD", "/g/tp.AppImage", "/g", "", "")
+        self.assertFalse(added)
+        self.assertEqual(appid, steam.shortcut_appid('"/g/tp.AppImage"', "Mine"))
+
+    def test_most_recent_account(self):
+        with tempfile.TemporaryDirectory() as t:
+            root, _ = self.fake_steam(t, ("111", "222"), most_recent="222")
+            self.assertEqual(steam.users(root), ["222"])
+        with tempfile.TemporaryDirectory() as t:
+            root, _ = self.fake_steam(t, ("111", "222"))
+            self.assertEqual(steam.users(root), ["111", "222"])
+
+    def test_add_writes_shortcut_pictures_and_backup(self):
+        with tempfile.TemporaryDirectory() as t:
+            root, pics = self.fake_steam(t)
+            cfg = os.path.join(root, "userdata", "123", "config")
+            old = steam.write_vdf({"shortcuts": {"0": {"AppName": "Other game", "Exe": '"/other"'}}})
+            with open(os.path.join(cfg, "shortcuts.vdf"), "wb") as f:
+                f.write(old)
+            os.makedirs(os.path.join(cfg, "grid"))
+            data = os.path.join(t, "data")
+            with mock.patch.object(steam, "running", return_value=False):
+                (acc, appid, added), = steam.add("Twilight Princess HD", "/g/tp.AppImage", "/g", "", pics, data, root=root)
+                with open(os.path.join(cfg, "grid", "%dp.jpg" % appid), "w") as f:
+                    f.write("an older cover")  # replaced, or Steam might show it instead
+                steam.add("Twilight Princess HD", "/g/tp.AppImage", "/g", "", pics, data, root=root)
+            self.assertEqual((acc, added), ("123", True))
+            with open(os.path.join(cfg, "shortcuts.vdf"), "rb") as f:
+                sc = steam.parse_vdf(f.read())["shortcuts"]
+            self.assertEqual([e["AppName"] for e in sc.values()], ["Other game", "Twilight Princess HD"])
+            with open(os.path.join(cfg, "shortcuts.vdf.tphd-backup"), "rb") as f:
+                self.assertEqual(f.read(), old)
+            grid = sorted(os.listdir(os.path.join(cfg, "grid")))
+            self.assertEqual(grid, sorted(["%dp.png" % appid, "%d.png" % appid, "%d_hero.png" % appid, "%d_logo.png" % appid]))
+            with open(os.path.join(cfg, "grid", "%d_hero.png" % appid), "rb") as f:
+                self.assertEqual(f.read(), b"hero.png")
+            icon = sc["1"]["icon"]
+            self.assertEqual(os.path.dirname(icon), data)
+            self.assertTrue(os.path.isfile(icon))
+
+    def test_running_steam_is_not_touched(self):
+        with tempfile.TemporaryDirectory() as t:
+            root, pics = self.fake_steam(t)
+            with mock.patch.object(steam, "running", return_value=True):
+                with self.assertRaises(steam.SteamError) as e:
+                    steam.add("Twilight Princess HD", "/g/tp", "/g", "", pics, t, root=root)
+            self.assertEqual(str(e.exception), "running")
+            self.assertFalse(os.path.exists(os.path.join(root, "userdata", "123", "config", "shortcuts.vdf")))
+
+    def test_target(self):
+        state = {"exe": "/d/bin/tphd", "launcher": ""}
+        with mock.patch.object(setup, "appimage", return_value="/g/TwilightPrincessHD.AppImage"):
+            self.assertEqual(setup.steam_target(state, "/d"), ("/g/TwilightPrincessHD.AppImage", "/g", ""))
+        with mock.patch.object(setup, "appimage", return_value=None), mock.patch.object(setup, "PORTABLE", False), \
+                mock.patch.object(setup, "IS_LINUX", False):
+            self.assertEqual(setup.steam_target(state, "/d"), ("/d/bin/tphd", "/d", "--game game --save save"))
+
+    def test_guard_pins_the_pictures(self):
+        sys.path.insert(0, os.path.join(HERE, "..", "release"))
+        import guard
+        problems = []
+        root = os.path.join(HERE, "..", "..", "assets", "steam")
+        for n in sorted(os.listdir(root)):
+            with open(os.path.join(root, n), "rb") as f:
+                guard.check_steam("pkg/steam/" + n, f.read(), set(), problems)
+        self.assertEqual(problems, [])
+        guard.check_steam("pkg/steam/cover.png", b"something else", set(), problems)
+        guard.check_steam("pkg/steam/extra.png", b"x", set(), problems)
+        self.assertEqual(len(problems), 2)
 
 
 class AppImageShortcut(unittest.TestCase):

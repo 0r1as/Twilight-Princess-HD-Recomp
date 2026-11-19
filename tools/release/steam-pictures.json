@@ -1,0 +1,11 @@
+{
+ "_comment": "The Steam pictures a release may carry in steam/ (assets/steam, copied by package.py; setup.py's Add to Steam): guard.py accepts exactly these files there. Update with the pictures.",
+ "files": {
+  "cover.png": "26866218e324036e5a66d698b737f73bc9607f78be3bb33b0f2542519fe81f7f",
+  "hero.png": "9a73d5afe81cab8d270459a31c6651f768a5be96664335442f7248ad73feb1ae",
+  "icon.ico": "944fe3828b18fda14a1901ae7928379ab63e2b07b59a983c9ed0d601014119ba",
+  "icon.png": "45a80e0c20774e2de947b0c08718f5663e469b47bb41cf2bd59bd19200fc7b86",
+  "logo.png": "ac0ce6402b4c5d07372daf5fab58d28856a6d9b4572a0b2432bed07f4fa6791f",
+  "wide.png": "69ca215c5080fbc96cfbce8ecf186ced118f00c26f082bd033893f57652889b7"
+ }
+}

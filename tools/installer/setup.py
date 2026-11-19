@@ -49,6 +49,8 @@ import zlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import steam  # noqa: E402  (tools/installer/steam.py: Add to Steam)
 PKG = os.path.normpath(os.path.join(HERE, "..", ".."))
 # Portable release (portable.txt in the release folder): everything setup and the game create stays
 # in <release folder>/data. Without the marker: the per-user locations of earlier releases.
@@ -1275,6 +1277,71 @@ def appimage():
     return image if IS_LINUX and image and os.path.isfile(image) else None
 
 
+# ---------------------------------------------------------------------------------------------
+# Add to Steam (as a non-Steam game, with the release's pictures: steam.py)
+
+
+def steam_pictures_dir():
+    """The Steam pictures: steam/ in a release (tools/release/package.py), assets/steam/ in the source tree."""
+    for d in (os.path.join(PKG, "steam"), os.path.join(PKG, "assets", "steam")):
+        if os.path.isdir(d):
+            return d
+    return None
+
+
+def steam_available():
+    return not IS_MAC and bool(steam.steam_roots())
+
+
+def steam_target(state, data_dir):
+    """What the Steam entry starts: (program, start folder, launch options). The AppImage or a portable release's
+    launcher (they update and repair the game themselves); otherwise the built game, as the other shortcuts do."""
+    if appimage():
+        return appimage(), os.path.dirname(appimage()), ""
+    if PORTABLE:
+        return os.path.join(PKG, LAUNCHER), PKG, ""
+    if IS_LINUX and state.get("launcher") and os.path.isfile(state["launcher"]):
+        return state["launcher"], data_dir, ""
+    return state["exe"], data_dir, "--game game --save save"
+
+
+def add_to_steam(state, data_dir, close_steam=False):
+    """Adds the installed game to Steam (or updates the entry that already starts it) with the release's pictures.
+    Steam must be closed: with close_steam it is asked to quit first and started again afterwards. Raises
+    SetupError; its message is "steam_running" when Steam runs and close_steam is off."""
+    if IS_MAC:
+        raise SetupError("Add to Steam is for Windows and Linux")
+    roots = steam.steam_roots()
+    if not roots:
+        raise SetupError("Steam was not found on this computer")
+    pics = steam_pictures_dir()
+    if not pics:
+        raise SetupError("this release has no Steam pictures (steam/ folder)")
+    exe, start_dir, options = steam_target(state, data_dir)
+    closed = False
+    if steam.running():
+        if not close_steam:
+            raise SetupError("steam_running")
+        LOG.write("asking Steam to quit")
+        try:
+            if not steam.shutdown(roots[0]):
+                raise SetupError("Steam did not quit; close it, then try again")
+        except steam.SteamError as e:
+            raise SetupError(str(e))
+        closed = True
+    try:
+        done = steam.add(APP_NAME, exe, start_dir, options, pics, data_dir, log=LOG.write, root=roots[0])
+    except (steam.SteamError, OSError) as e:
+        raise SetupError("could not add the game to Steam: %s" % e)
+    finally:
+        if closed:
+            steam.start(roots[0])
+    added = any(a for _, _, a in done)
+    return ("Added to Steam" if added else "Updated in Steam") + \
+        (" with its pictures." if not closed else " with its pictures; Steam is starting again.") + \
+        ("" if closed else " Start Steam to see it in your library.")
+
+
 def create_shortcut():
     """Optional (portable release or AppImage): a shortcut to the release's launcher. Returns its path."""
     target = appimage() or os.path.join(PKG, LAUNCHER)
@@ -1693,6 +1760,9 @@ def main():
     ap.add_argument("--import-save", metavar="FOLDER",
                     help="copy a Cemu or Wii U save of the game (its save folder, e.g. Cemu's "
                          "mlc01/usr/save/00050000/1019e500) into the save folder; a save already there is backed up")
+    ap.add_argument("--add-to-steam", action="store_true",
+                    help="add the installed game to Steam as a non-Steam game, with its pictures (Windows, Linux); "
+                         "asks Steam to quit first and starts it again")
     ap.add_argument("--gui-protocol", action="store_true",
                     help="machine interface for the graphical installer (JSON lines; see tools/installer/README.md)")
     args = ap.parse_args()
@@ -1702,6 +1772,18 @@ def main():
         pass
     if args.gui_protocol:
         return gui_main(args)
+    if args.add_to_steam:
+        ctx = Ctx(args)
+        state = ctx.state()
+        if not state:
+            say("The game is not installed yet: run setup first.")
+            return 1
+        try:
+            say(add_to_steam(state, ctx.data_dir, close_steam=True))
+        except SetupError as e:
+            say("Setup stopped: %s" % e)
+            return 1
+        return 0
     interactive = not (args.yes or os.environ.get("TPHD_SETUP_NONINTERACTIVE")) and sys.stdin.isatty()
     ui = UI(interactive)
     try:
@@ -1996,7 +2078,7 @@ def gui_main(args):
             session.update(keys=None, info=None)
         tdir = toolchain_dir(ctx.data_dir)
         reply(req, app=state.get("app", ""), exe=state.get("exe", ""), data_dir=ctx.data_dir,
-              game_dir=state.get("game_dir", ""),
+              game_dir=state.get("game_dir", ""), steam=steam_available() and bool(steam_pictures_dir()),
               toolchain_bytes=folder_size(tdir) if os.path.isdir(tdir) else 0)
 
     def do_import_save(req):
@@ -2014,6 +2096,21 @@ def gui_main(args):
         except (SetupError, OSError) as e:
             fail(req, "shortcut", str(e))
 
+    def do_steam_info(req):
+        reply(req, found=steam_available() and bool(steam_pictures_dir()), running=steam.running())
+
+    def do_steam_add(req):
+        st = ctx.state()
+        if not st:
+            return fail(req, "not_installed", "The game is not installed.")
+        try:
+            reply(req, message=add_to_steam(st, ctx.data_dir, bool(req.get("close"))))
+        except SetupError as e:
+            msg = str(e)
+            if msg == "steam_running":
+                return fail(req, "steam_running", "Steam is running. It has to be closed while the game is added.")
+            fail(req, "steam", msg[0].upper() + msg[1:])
+
     def do_launch(req):
         st = ctx.state()
         if not st:
@@ -2023,6 +2120,7 @@ def gui_main(args):
 
     handlers = {"probe": probe, "check_keys": check, "install": do_install, "import_save": do_import_save,
                 "remove_toolchain": do_remove_toolchain, "shortcut": do_shortcut, "launch": do_launch,
+                "steam_info": do_steam_info, "steam_add": do_steam_add,
                 "hello": lambda req: hello()}
     hello()
     for line in sys.stdin:

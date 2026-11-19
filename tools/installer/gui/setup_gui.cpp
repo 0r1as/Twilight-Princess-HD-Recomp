@@ -444,6 +444,10 @@ struct App {
     double free_bytes = 0, source_bytes = 0, toolchain_bytes = 0;
     bool opt_remove_toolchain = true, opt_shortcut = false;
     std::deque<std::pair<std::string, std::string>> queue;  // requests to send one after another
+    // Add to Steam (setup.py add_to_steam): asked once after a first install, a button afterwards
+    bool steam_found = false, steam_ask = false, steam_close_ask = false;
+    std::string steam_msg;
+    bool steam_ok = false;
     std::string after;                                       // then: play | quit | open
     bool exec_game = false;                                  // start the game when the window has closed
 
@@ -856,6 +860,8 @@ static void handle_reply(const J& ev) {
             A.toolchain_bytes = ev.num("toolchain_bytes");
             A.game_dir = ev.str("game_dir", A.game_dir);
             g_exe = ev.str("exe"), g_game_dir = A.game_dir, g_data_dir = ev.str("data_dir", A.data_dir);
+            A.steam_found = ev.boolean("steam");
+            if (!A.installed && A.steam_found && !A.self_test) A.steam_ask = true;  // a first install: offer Steam once
             A.installed = true;
             addlog("Setup finished.");
             go(Screen::Done);
@@ -867,6 +873,14 @@ static void handle_reply(const J& ev) {
         }
     } else if (cmd == "remove_toolchain" || cmd == "shortcut") {
         if (!ok) addlog(ev.str("message"));
+    } else if (cmd == "steam_info") {
+        A.steam_found = ok && ev.boolean("found");
+    } else if (cmd == "steam_add") {
+        A.steam_ok = ok;
+        A.steam_msg = ev.str("message");
+        addlog(A.steam_msg);
+        if (!ok && ev.str("problem") == "steam_running") A.steam_close_ask = true, A.steam_msg.clear();
+        else if (ok) show_toast(A.steam_msg);
     } else if (cmd == "import_save") {
         A.save_ok = ok;
         A.save_msg = ev.str("message");
@@ -894,6 +908,7 @@ static void handle_event(const J& ev) {
         A.installed = inst && inst->t == J::Obj;
         A.installed_version = A.installed ? inst->str("version") : "";
         if (A.installed) {
+            if (!A.self_test) A.queue.push_back({"steam_info", ""});
             A.result_app = inst->str("app");
             g_exe = inst->str("exe"), g_game_dir = inst->str("game_dir"), g_data_dir = A.data_dir;
         }
@@ -1091,6 +1106,48 @@ static void screen_welcome() {
     if (b == 1) go(Screen::Source);
 }
 
+// "Add to Steam": the game as a non-Steam game with the release's pictures (setup.py add_to_steam)
+static void steam_button(float w) {
+#ifndef __APPLE__
+    if (!A.steam_found) return;
+    bool working = A.pending_cmd == "steam_add" && busy();
+    if (button(working ? "Adding to Steam..." : "Add to Steam", ImVec2(w, 0), false, !busy())) A.steam_ask = true;
+    if (!A.steam_msg.empty()) {
+        mark(A.steam_ok ? 2 : 3);
+        ImGui::TextWrapped("%s", A.steam_msg.c_str());
+    }
+#else
+    (void)w;
+#endif
+}
+
+static void steam_dialogs() {
+    if (A.steam_ask) ImGui::OpenPopup("Add to Steam?"), A.steam_ask = false;
+    if (A.steam_close_ask) ImGui::OpenPopup("Steam is running"), A.steam_close_ask = false;
+    if (ImGui::BeginPopupModal("Add to Steam?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextUnformatted("Add Twilight Princess HD to Steam as a non-Steam game?");
+        muted("It gets its cover, background, logo and icon in your Steam library.");
+        if (button("Add to Steam", ImVec2(180, 0), true)) {
+            A.queue.push_back({"steam_add", ""});
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (button("Not now", ImVec2(180, 0))) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+    if (ImGui::BeginPopupModal("Steam is running", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextUnformatted("Steam has to be closed while the game is added.");
+        muted("Setup can close Steam, add the game and start Steam again.");
+        if (button("Close Steam and add", ImVec2(220, 0), true)) {
+            A.queue.push_back({"steam_add", "\"close\":true"});
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (button("Cancel", ImVec2(180, 0))) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+}
+
 static void screen_menu() {
     bool update = A.installed_version != A.version;
     page_header(A.portable ? "Twilight Princess HD" : "Twilight Princess HD is installed",
@@ -1106,6 +1163,7 @@ static void screen_menu() {
     muted("Rebuilds the game code from the installed game files.");
     if (button("Change the game (disc image, Cemu archive or game folder)", ImVec2(w, 0))) go(Screen::Source);
     if (button("Import a save from Cemu or a Wii U", ImVec2(w, 0))) open_save_screen(Screen::Menu);
+    steam_button(w);
     if (button("Open the folder", ImVec2(w, 0))) open_folder(home_folder());
     if (footer({"Quit"}) == 0) A.exit_code = 0;
 }
@@ -1335,6 +1393,7 @@ static void screen_done() {
     }
     if (button("Import a save from Cemu or a Wii U", ImVec2(0, 0), false, !busy() && A.after.empty()))
         open_save_screen(Screen::Done);
+    steam_button(0);
     if (A.portable) {
         ImGui::Spacing();
         if (A.toolchain_bytes > 0) {
@@ -1931,6 +1990,7 @@ int main(int argc, char** argv) {
             else A.exit_code = 0;
             quit_requested = false;
         }
+        steam_dialogs();
         if (ImGui::BeginPopupModal("Stop setup?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::TextUnformatted("Setup is still working. Stop it now?");
             muted("You can run Setup again later; finished steps are kept.");
