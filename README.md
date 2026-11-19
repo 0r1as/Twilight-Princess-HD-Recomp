@@ -111,7 +111,8 @@ cmake --build build/linux-game -j$(nproc) --target wwhd
 
 Settings, controls, save states and the Vulkan shader cache are kept in `~/.config/tphd` (`$XDG_CONFIG_HOME`).
 A portable package of the setup app for Linux is made like the macOS one, with the pinned zig toolchain
-(`tools/installer/toolchains.json`), and `python3 tools/release/appimage.py <package folder> --out <dir>` packs it
+(`tools/installer/toolchains.json`), and `python3 tools/release/appimage.py <package folder> --out <dir>` (`--name
+TwilightPrincessHD.AppImage` for one file name every build) packs it
 as one AppImage (pinned appimagetool and AppImage runtime, SHA-256 checked); the AppImage keeps the game, saves
 and settings in `~/.local/share/tphd` and `~/.config/tphd`, or in `<file>.AppImage.home` after
 `--appimage-portable-home`.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Pack an already-packaged Linux release folder as one AppImage (ported from the Wind Waker HD recomp).
 
-usage: appimage.py PKG_DIR --out OUT_DIR [--appimagetool PATH] [--runtime-file PATH]
+usage: appimage.py PKG_DIR --out OUT_DIR [--name FILE] [--appimagetool PATH] [--runtime-file PATH]
        appimage.py --extract-runtime APPIMAGE OUT_FILE
 
 PKG_DIR is the TwilightPrincessHD-VERSION-linux-ARCH folder tools/release/package.py produced (with
@@ -12,7 +12,8 @@ the program, and nothing is written beside the .AppImage. Portable use is the Ap
 own: a "<AppImage>.home" folder next to the file becomes $HOME (see APPRUN).
 
 Adds what appimagetool wants at the AppDir root (AppRun, a .desktop, an icon drawn here: not game art) and
-squashes it with the AppImage project's appimagetool. Output: OUT_DIR/<basename of PKG_DIR>.AppImage.
+squashes it with the AppImage project's appimagetool. Output: OUT_DIR/<basename of PKG_DIR>.AppImage, or
+OUT_DIR/FILE with --name (one name for every build, so a shortcut to it stays valid).
 """
 import argparse
 import hashlib
@@ -309,6 +310,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("pkg", help="the TwilightPrincessHD-VERSION-linux-ARCH folder package.py produced")
     ap.add_argument("--out", required=True, help="where to write the .AppImage")
+    ap.add_argument("--name", help="the AppImage's file name (default: the package folder's name + .AppImage)")
     ap.add_argument("--appimagetool", help="appimagetool to use (default: one on PATH, else the pinned download)")
     ap.add_argument("--runtime-file", help="the pinned AppImage runtime (RUNTIME; default: download it); "
                     "a file with another SHA-256 is refused")
@@ -328,7 +330,9 @@ def main():
     out = os.path.abspath(a.out)
     os.makedirs(out, exist_ok=True)
     name = os.path.basename(pkg)
-    target = os.path.join(out, name + ".AppImage")
+    if a.name and (os.sep in a.name or a.name in (".", "..")):
+        sys.exit("--name is a file name, not a path: " + a.name)
+    target = os.path.join(out, a.name or name + ".AppImage")
     tool = ensure_appimagetool(a.appimagetool, arch)
     runtime = ensure_runtime(a.runtime_file, arch)
 
