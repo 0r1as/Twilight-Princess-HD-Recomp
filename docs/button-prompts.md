@@ -67,15 +67,13 @@ the title screen, Ordon Spring and Village, the item ring, field map and Collect
 
 ## Icons in message text
 
-A message shows a button inline with a BMG escape: 0x1A, length 5, group 0, type 0x000A (A) or 0x000B (B); the
-HD-only icons (ZL, ...) are group 7. X and Y in messages are drawn with the `tt_zelda_button_{x,y}_text` textures,
-which the texture swap above already exchanges. A and B can't be swapped as textures, so with the Xbox style the
-runtime serves the message archives (`res/Msg*/bmgres*.arc`, every language) with those two escapes exchanged
-(`mods/prompt_messages.cpp`, switched on in main.cpp, called by the mod manager before content replacements start). Each archive
-is decompressed (Yaz0), only the A/B escapes inside BMG DAT1 sections change (the text is walked escape by escape;
-UTF-16 BMGs, which TP HD doesn't ship, are skipped), and the copy is written back as literal-only Yaz0 into the
-mod cache (`ModManager/Cache/xbox-prompts/`), once. A content mod that replaces a message archive wins. The style
-is fixed for the session, as for the textures: a change in the Controls tab applies at the next start.
-
-Checked: 90 archives, 1926 icons; compared with the originals, every changed byte is an A/B icon code; the game
-reads the copies (Msgus at boot) and plays.
+A message shows a button inline with a BMG escape: 0x1A, length 5, group 0, type 0x000A (A), 0x000B (B), 0x000F (X)
+or 0x0010 (Y); the HD-only icons (ZL, ...) are group 7. These icons are not relabelled by the texture swap above:
+A and B can't be swapped as textures, and the X/Y swap does not reach message text (the wolf's senses line still
+showed X). So with the Xbox style the runtime serves the message archives (`res/Msg*/bmgres*.arc`, every language)
+with A <-> B and X <-> Y exchanged (`mods/prompt_messages.cpp`, switched on in main.cpp, called by the mod manager
+before content replacements start). Each archive is decompressed (Yaz0), only those escapes inside BMG DAT1
+sections change (the text is walked escape by escape; UTF-16 BMGs, which TP HD doesn't ship, are skipped), and the
+copy is written back as literal-only Yaz0 into the mod cache (`ModManager/Cache/xbox-prompts-3/`), once. A content
+mod that replaces a message archive wins. The style is fixed for the session, as for the textures: a change in the
+Controls tab applies at the next start.

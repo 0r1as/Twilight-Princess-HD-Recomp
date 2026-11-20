@@ -84,9 +84,11 @@ size_t swap_message_icons(std::vector<uint8_t>& d) {
                 for (size_t i = sec + 8; i < stop;) {
                     if (d[i] != 0x1A || i + 1 >= stop) { i++; continue; }
                     const size_t n = d[i + 1];
-                    if (n == 5 && i + 5 <= stop && d[i + 2] == 0 && d[i + 3] == 0 && (d[i + 4] == 0x0A || d[i + 4] == 0x0B)) {
-                        d[i + 4] ^= 0x01;  // 0x0A <-> 0x0B
-                        swapped++;
+                    if (n == 5 && i + 5 <= stop && d[i + 2] == 0 && d[i + 3] == 0) {
+                        uint8_t& icon = d[i + 4];
+                        if (icon == 0x0A || icon == 0x0B) icon ^= 0x01, swapped++;  // A <-> B
+                        else if (icon == 0x0F) icon = 0x10, swapped++;               // X -> Y
+                        else if (icon == 0x10) icon = 0x0F, swapped++;               // Y -> X
                     }
                     i += n >= 2 ? n : 1;
                 }
@@ -113,7 +115,7 @@ void message_archives(const std::filesystem::path& game, const std::filesystem::
             std::string key = "res/" + folder + "/" + name;  // replacement keys are lower case (content.h)
             for (char& ch : key) ch = (char)tolower((unsigned char)ch);
             if (files.count(key)) continue;  // a content mod's own message file wins
-            const fs::path out = cache / "xbox-prompts" / folder / name;
+            const fs::path out = cache / "xbox-prompts-3" / folder / name;  // -3: A/B and X/Y (earlier copies: A/B only)
             if (!fs::exists(out, ec) || fs::last_write_time(out, ec) < fs::last_write_time(f.path(), ec)) {
                 std::vector<uint8_t> src, arc;
                 {
@@ -143,7 +145,7 @@ void message_archives(const std::filesystem::path& game, const std::filesystem::
             served++;
         }
     }
-    fprintf(stderr, "[prompts] Xbox prompts in messages: %zu message archives served with A and B swapped (%zu made now, %zu icons)\n",
+    fprintf(stderr, "[prompts] Xbox prompts in messages: %zu message archives served with A/B and X/Y swapped (%zu made now, %zu icons)\n",
             served, made, icons);
 }
 
