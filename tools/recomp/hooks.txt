@@ -58,6 +58,7 @@
 0202BA48  # daAlink_c::setWaterInAnmRate: faster climbing (each step's rate)
 0204D094  # daAlink_c::procFrontRollInit: faster rolls (Link's speed)
 0203ABD0  # daAlink_c::checkCutLargeTurnState: great spin
+02704E8C  # daObjDrop_c::checkCompleteDemo: one Tear of Light fills the vessel (mods/builtin.cpp)
 02B889F4  # HD resource path: "/res/<dir>/<name>.bti" -> "/tex/<dir>/<name>.bti.gtx" (button_prompts.cpp)
 02A838F4  # message light draw (the glow behind message text): its frame advances per draw (interp.cpp)
 02A83CC0  # message light draw, coloured variant: as above (interp.cpp)

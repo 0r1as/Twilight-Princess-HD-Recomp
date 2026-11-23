@@ -65,6 +65,7 @@ switches them off. They take effect on the next logic step, with no restart (`ru
 - Faster rolls and climbing: Link rolls, and climbs ladders and vine walls, half again as fast (a roll covers the same
   ground).
 - Great spin: the spin attack is always the great spin, at any health and before it is learned.
+- One Tear of Light: the first Tear of Light picked up in a twilit area fills the whole Vessel of Light.
 - Boss rush: every dungeon boss in story order. Start the boss rush (under its name) warps to Diababa; leaving a
   boss's room after the fight goes on to the next, and a game over to the same one; it ends with Ganondorf's throne
   room. Play it on a file that has the items.

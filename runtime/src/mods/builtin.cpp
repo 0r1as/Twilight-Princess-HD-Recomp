@@ -71,6 +71,7 @@ const std::vector<Mod> kCatalogue = {
     {"moon-jump", "Moon jump", "Link rises into the air while the left stick is held in (L3).", {}},
     {"fast-moves", "Faster rolls and climbing", "Link rolls, and climbs ladders and vine walls, half again as fast.", {}},
     {"great-spin", "Great spin", "Link's spin attack is always the great spin, at any health and before it is learned.", {}},
+    {"one-tear", "One Tear of Light", "The first Tear of Light the wolf picks up in an area fills the whole Vessel of Light.", {}},
     {"boss-rush", "Boss rush",
      "Every dungeon boss in story order: Start warps to the first, and leaving a boss's room after the fight goes on to "
      "the next (a game over, to the same one). Play it on a file that has the items for them.",
@@ -435,4 +436,24 @@ extern "C" void f_0203ABD0_orig(Cpu* c);
 extern "C" void hook_0203ABD0(Cpu* c) {
     if (mods::builtin::on("great-spin")) c->r[3] = 1;
     else f_0203ABD0_orig(c);
+}
+
+// One Tear of Light: daObjDrop_c::checkCompleteDemo (02704E8C, r3 the tear) plays the vessel's complete scene when the
+// area's count (dSv_light_drop_c at save +0x114, by the start stage's dark area at +0x52AC) is one short of what the
+// area needs (+0x6366; 12 in HD), and otherwise counts one more (dropGet 0270456C). With the mod the count is put one
+// short first, so this tear completes the vessel. In Lanayru (area 2) dropGet sets an event flag when the count reaches
+// 11, which the jump goes past; it is set here as dropGet does (onEventBit 02AA55E8, save +0x1F0, the label at 1009F89E).
+extern "C" void f_02704E8C_orig(Cpu* c);
+extern "C" void hook_02704E8C(Cpu* c) {
+    using namespace mods::builtin;
+    const int area = (int8_t)ld8(kSave + 0x52AC), need = ld8(kSave + 0x6366);
+    if (on("one-tear") && area >= 0 && area < 4 && need > 1 && ld8(kSave + 0x114 + area) < need - 1) {
+        if (area == 2) {
+            const uint32_t drop = c->r[3];
+            guest_call(c, 0x02AA55E8, {kSave + 0x1F0, ld16(0x1009F89E)});
+            c->r[3] = drop;
+        }
+        st8(kSave + 0x114 + area, (uint8_t)(need - 1));
+    }
+    f_02704E8C_orig(c);
 }
