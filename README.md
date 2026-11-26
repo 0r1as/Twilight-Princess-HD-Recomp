@@ -302,8 +302,10 @@ distance from the edges. Menus, messages and the title are drawn at 16:9 in the 
 full-screen menus such as Collection, the map and the save prompt. The GamePad picture is unchanged.
 `TPHD_ASPECT=window|16:10|21:9|32:9`.
 
-**Internal resolution.** 1x (1920x1080, as on the Wii U), 1.33x (2560x1440), 1.5x (2880x1620) or
-2x (3840x2160), widened to the aspect ratio (21:9 at 1x is 2520x1080). Measured at 60 fps on a MacBook Air
+**Internal resolution.** 0.5x (960x540, Vulkan), 0.67x (1280x720, Vulkan), 1x (1920x1080, as on the Wii U),
+1.33x (2560x1440), 1.5x (2880x1620) or 2x (3840x2160), widened to the aspect ratio (21:9 at 1x is 2520x1080).
+The two below 1x are for handhelds such as the Steam Deck, where the GPU is the limit; `TPHD_RES_SCALE=<0.25..4>`
+sets it for one start. Measured at 60 fps on a MacBook Air
 (M4, fanless): 1x holds 60 at 16:9, 21:9 and 32:9; 1.5x falls to 35-55 as it warms up; 2x to about 30-38.
 
 **Bloom and HUD.** Bloom (the glow around bright areas, strongest in the Twilight) at its original

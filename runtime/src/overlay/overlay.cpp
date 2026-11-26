@@ -573,11 +573,14 @@ void tab_graphics() {
          "title and the performance overlay. Not saved.");
 
     heading("Internal resolution");
-    static const float scales[] = {1.0f, 4.0f / 3.0f, 1.5f, 2.0f};
-    static const char* const names[] = {"1x  (1920x1080)", "1.33x  (2560x1440)", "1.5x  (2880x1620)", "2x  (3840x2160)"};
+    static const float scales[] = {0.5f, 2.0f / 3.0f, 1.0f, 4.0f / 3.0f, 1.5f, 2.0f};
+    static const char* const names[] = {"0.5x  (960x540)", "0.67x  (1280x720)", "1x  (1920x1080)", "1.33x  (2560x1440)",
+                                        "1.5x  (2880x1620)", "2x  (3840x2160)"};
     float cur = hostui::res_scale();
-    for (int i = 0; i < 4; i++) {
-        if (i) ImGui::SameLine();
+    // the Metal renderer keeps its 1x minimum
+    const int first = render::vulkan() ? 0 : 2;
+    for (int i = first; i < 6; i++) {
+        if (i > first) ImGui::SameLine();
         float s = scales[i];
         if (radio(names[i], std::fabs(cur - s) < 0.01f)) post_changed([s] { hostui::set_res_scale(s); });
     }
